@@ -68,7 +68,7 @@ func _build_arena() -> void:
 	var grass_texture: Texture = load("res://map/tileset/Grass.png")
 	water_texture.flags = 0
 	grass_texture.flags = 0
-	var water_set := _make_tileset(water_texture, {17: Rect2(0, 0, 16, 16)}, true)
+	var water_set := _make_tileset(water_texture, {17: Rect2(0, 0, 16, 16)}, false)
 	var grass_set := _make_tileset(grass_texture, {
 		1: Rect2(0, 0, 16, 16),
 		2: Rect2(32, 0, 16, 16),
@@ -128,6 +128,17 @@ func _build_arena() -> void:
 				continue
 			if random.randi_range(1, 100) <= 5:
 				decor.set_cell(x, y, random.randi_range(11, 16))
+	var wall_set := _make_tileset(water_texture, {17: Rect2(0, 0, 16, 16)}, true)
+	var walls := TileMap.new()
+	walls.name = "Walls"
+	walls.tile_set = wall_set
+	walls.cell_size = Vector2(16, 16)
+	walls.z_index = -1
+	add_child(walls)
+	for x in range(-18, 18):
+		for y in range(-14, 14):
+			if x < -15 or x > 14 or y < -11 or y > 10 or pond_cells.has(Vector2(x, y)):
+				walls.set_cell(x, y, 17)
 	if is_instance_valid(camera):
 		camera.limit_left = -256
 		camera.limit_top = -192
@@ -298,14 +309,15 @@ func _spawn_position() -> Vector2:
 		var side := randi() % 4
 		match side:
 			0:
-				position = Vector2(rand_range(-218, 218), -154)
+				position = Vector2(rand_range(-120, 120), -64)
 			1:
-				position = Vector2(rand_range(-218, 218), 154)
+				position = Vector2(rand_range(-120, 120), 64)
 			2:
-				position = Vector2(-218, rand_range(-150, 150))
+				position = Vector2(-120, rand_range(-60, 60))
 			_:
-				position = Vector2(218, rand_range(-150, 150))
-		if position.distance_to(player.global_position) > 135:
+				position = Vector2(120, rand_range(-60, 60))
+		var cell := Vector2(int(floor(position.x / 16.0)), int(floor(position.y / 16.0)))
+		if position.distance_to(player.global_position) > 100 and not pond_cells.has(cell):
 			break
 	return position
 

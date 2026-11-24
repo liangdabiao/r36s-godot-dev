@@ -4,7 +4,7 @@
 >
 > 目标设备是 **R36S**（640×480 屏，PortMaster / FRT 运行时）。电脑端用 **Godot 3.5.3** 开发，掌机用 `frt_3.5.2` 运行，同属 3.5.x。
 >
-> 2026-11-24 状态：玩法回归 **24 项全部通过**，新 PCK 已导出并通过 `--main-pack` 独立加载验证；标题 / 战斗 / 升级 / Boss / 结算截图已核对。掌机部署与验收流程见第 7、10 节。
+> 2026-11-24 状态：玩法回归 **26 项全部通过**，新 PCK 已导出并通过 `--main-pack` 独立加载验证；标题 / 战斗 / 升级 / Boss / 结算截图已核对。掌机部署与验收流程见第 7、10 节。
 
 ## 目录
 
@@ -66,8 +66,8 @@
 | 音频 | 9 个本地合成 WAV | `assets/audio/` |
 | 存档 | `user://spring_guard.cfg` | `game/Game.gd` |
 | 导出预设 | Linux/X11、HTML5 | `export_presets.cfg` |
-| 掌机产物 | `demo.pck` 745,856 字节（约 728 KiB） | `.build/demo/demo.pck` |
-| PCK SHA-256 | `5f60d4bbbc54abcabaf1683f4b4c7c6b066d6f849765e5cc5aa06673ad99db3a` | `sha256sum` |
+| 掌机产物 | `demo.pck` 746,416 字节（约 729 KiB） | `.build/demo/demo.pck` |
+| PCK SHA-256 | `fc1f1fe3b8d02b5682fdfbc46ec3a7c2fca6dfab7190d827429c92a2a03ce21f` | `sha256sum` |
 
 ---
 
@@ -87,7 +87,7 @@ GODOT="/c/Users/49707/AppData/Local/Temp/godot-3.5.3/Godot_v3.5.3-stable_win64.e
 # 启动检查：日志里不能有 SCRIPT ERROR
 "$GODOT" --headless --path . --no-window --quit
 
-# 玩法回归：24 项检查，退出码 0 表示全过
+# 玩法回归：26 项检查，退出码 0 表示全过
 "$GODOT" --headless --path . --script res://.build/test_game.gd
 
 # 截图：会短暂弹窗，输出到 docs/images/game_*.png
@@ -145,10 +145,10 @@ python tools/build_game_assets.py
 | `map/tileset/` | 瓦片图 | 运行时用 `Grass.png`、`Water.png` 建 TileSet |
 | `fonts/` | JetBrains Mono | HUD 与特效文字 |
 | `tools/build_game_assets.py` | 素材生成脚本 | 裁缩图集 + 合成音效，路径按 `__file__` 推导 |
-| `.build/test_game.gd` | 玩法回归 | 24 项检查，覆盖完整一局 |
+| `.build/test_game.gd` | 玩法回归 | 26 项检查，覆盖完整一局 |
 | `.build/capture_game.gd` | 截图脚本 | 顺序导出 5 个状态截图 |
 | `.build/demo.sh` | PortMaster 启动器 | 找运行时、挂 squashfs、起 gptokeyb、跑 PCK |
-| `.build/demo/demo.pck` | 掌机资源包 | 745,856 字节 |
+| `.build/demo/demo.pck` | 掌机资源包 | 746,416 字节 |
 | `.build/demo/demo.gptk` | 掌机按键映射 | 十字键 / 摇杆 → WASD，A/B/X/Y → J/K/L |
 | `.agent/skills/engine-guide/` | Godot 3.5 / R36S / FRT Skill | 版本识别、构建验证、部署 |
 | `.agent/skills/asset-gen/` | apiz 素材生成 Skill | Flare 图像、H3 视频、语音 / 音乐 |
@@ -324,13 +324,13 @@ python tools/build_game_assets.py
 
 | 项目 | 值 |
 |---|---|
-| 大小 | 745,856 字节（约 728 KiB） |
-| SHA-256 | `5f60d4bbbc54abcabaf1683f4b4c7c6b066d6f849765e5cc5aa06673ad99db3a` |
+| 大小 | 746,416 字节（约 729 KiB） |
+| SHA-256 | `fc1f1fe3b8d02b5682fdfbc46ec3a7c2fca6dfab7190d827429c92a2a03ce21f` |
 | 引擎 | 3.5.3 导出 / frt_3.5.2 运行 |
 | 主场景 | `res://scenes/Game.tscn` |
 | 脚本 | 编译为 `.gdc` + `.remap` |
 
-旧移动演示 PCK 约 25.67 MiB，因为 `all_resources` 把 76 张未用大图集也打进去了。现在导出预设排除了 `character/sprites/Character0_*`、`addons/*`、`tools/*`、`docs/*`、`.agent/*`、`.build/*`，只带实际用到的 48px 图集、瓦片、字体、音效和脚本，包体降到约 728 KiB。
+旧移动演示 PCK 约 25.67 MiB，因为 `all_resources` 把 76 张未用大图集也打进去了。现在导出预设排除了 `character/sprites/Character0_*`、`addons/*`、`tools/*`、`docs/*`、`.agent/*`、`.build/*`，只带实际用到的 48px 图集、瓦片、字体、音效和脚本，包体降到约 729 KiB。
 
 ### 7.4 更新游戏
 
@@ -511,8 +511,8 @@ git push -u origin main
 | Boss 生命 / 狂暴阈值 | 460 / ≤50% |
 | 玩家图集帧 | 48×48 |
 | 音效 | 9 个 WAV，22050Hz 单声道 |
-| PCK 大小 | 745,856 字节（约 728 KiB） |
-| PCK SHA-256 | `5f60d4bbbc54abcabaf1683f4b4c7c6b066d6f849765e5cc5aa06673ad99db3a` |
+| PCK 大小 | 746,416 字节（约 729 KiB） |
+| PCK SHA-256 | `fc1f1fe3b8d02b5682fdfbc46ec3a7c2fca6dfab7190d827429c92a2a03ce21f` |
 | 引擎 | 3.5.3 导出 / frt_3.5.2 运行 |
 
 ## 附录 B：术语

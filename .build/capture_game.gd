@@ -14,6 +14,12 @@ func _run() -> void:
 	yield(_capture("title"), "completed")
 	scene.start_game()
 	yield(scene.get_tree().create_timer(1.6), "timeout")
+	if scene.enemies.size() > 0:
+		scene.enemies[0].spawn_timer = 0.0
+		scene.enemies[0].global_position = scene.player.global_position + Vector2(70, 10)
+	if scene.enemies.size() > 1:
+		scene.enemies[1].spawn_timer = 0.0
+		scene.enemies[1].global_position = scene.player.global_position + Vector2(-85, -25)
 	yield(_capture("combat"), "completed")
 	scene.spawn_queue = 0
 	for index in range(6):

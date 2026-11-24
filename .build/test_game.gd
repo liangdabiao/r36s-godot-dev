@@ -14,10 +14,23 @@ func _run() -> void:
 	check(scene.get_state_name() == "PLAYING", "start enters playing state")
 	check(scene.wave == 1, "first wave is wave one")
 	check(scene.player.alive and scene.player.hp == scene.player.max_hp, "player starts alive at full health")
+	var move_start: Vector2 = scene.player.global_position
+	var move_key := InputEventKey.new()
+	move_key.physical_scancode = KEY_D
+	move_key.pressed = true
+	Input.parse_input_event(move_key)
+	yield(scene.get_tree().create_timer(0.25), "timeout")
+	move_key.pressed = false
+	Input.parse_input_event(move_key)
+	yield(scene.get_tree().create_timer(0.1), "timeout")
+	check(scene.player.global_position.distance_to(move_start) > 10.0, "physical keyboard input moves the player")
 	yield(scene.get_tree().create_timer(1.3), "timeout")
 	check(scene.living_enemy_count() > 0, "wave spawns enemies")
 	scene.spawn_queue = 0
 	var enemy = scene.enemies[0]
+	var enemy_start: Vector2 = enemy.global_position
+	yield(scene.get_tree().create_timer(0.5), "timeout")
+	check(enemy.global_position.distance_to(enemy_start) > 1.0, "enemies move toward the player")
 	enemy.global_position = scene.player.global_position + Vector2(0, 42)
 	var old_hp: float = enemy.hp
 	scene._on_player_attack(scene.player.global_position + Vector2(0, 18), Vector2.DOWN, 12.0)
