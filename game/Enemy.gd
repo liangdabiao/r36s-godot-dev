@@ -25,18 +25,24 @@ var state_timer := 0.0
 var charge_direction := Vector2.DOWN
 var knockback_velocity := Vector2.ZERO
 var velocity := Vector2.ZERO
+var path_target := Vector2.ZERO
+var path_timer := 0.0
 var player
+var arena
 
 func _ready() -> void:
+	if arena == null:
+		arena = get_parent().get_parent()
 	collision_layer = 2
 	collision_mask = 1
 	z_index = 4
+	path_target = global_position
 	add_to_group("enemies")
 	var shape := CircleShape2D.new()
-	shape.radius = radius
+	shape.radius = min(radius, 7.0)
 	var collision := CollisionShape2D.new()
 	collision.shape = shape
-	collision.position = Vector2(0, 4)
+	collision.position = Vector2.ZERO
 	add_child(collision)
 	update()
 
@@ -44,6 +50,7 @@ func setup(enemy_kind: String, wave_value: int, target: Node2D) -> void:
 	kind = enemy_kind
 	wave = wave_value
 	player = target
+	arena = target.get_parent()
 	match kind:
 		"slime":
 			max_hp = 26.0 + wave * 4.0
@@ -98,7 +105,12 @@ func _physics_process(delta: float) -> void:
 
 	var to_player: Vector2 = player.global_position - global_position
 	var distance := to_player.length()
-	var direction: Vector2 = to_player.normalized() if distance > 0.1 else Vector2.DOWN
+	path_timer -= delta
+	if path_timer <= 0.0 or global_position.distance_to(path_target) < 1.5:
+		path_target = arena.call("get_path_target", global_position, player.global_position)
+		path_timer = 0.18
+	var to_path_target: Vector2 = path_target - global_position
+	var direction: Vector2 = to_path_target.normalized() if to_path_target.length() > 1.0 else to_player.normalized()
 	velocity = knockback_velocity
 	match kind:
 		"bat":

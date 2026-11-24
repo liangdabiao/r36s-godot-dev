@@ -16,10 +16,12 @@ func _run() -> void:
 	yield(scene.get_tree().create_timer(1.6), "timeout")
 	if scene.enemies.size() > 0:
 		scene.enemies[0].spawn_timer = 0.0
-		scene.enemies[0].global_position = scene.player.global_position + Vector2(70, 10)
+		scene.enemies[0].global_position = scene.cell_to_world(Vector2(17, 11))
+		scene.enemies[0].path_target = scene.enemies[0].global_position
 	if scene.enemies.size() > 1:
 		scene.enemies[1].spawn_timer = 0.0
-		scene.enemies[1].global_position = scene.player.global_position + Vector2(-85, -25)
+		scene.enemies[1].global_position = scene.cell_to_world(Vector2(13, 11))
+		scene.enemies[1].path_target = scene.enemies[1].global_position
 	yield(_capture("combat"), "completed")
 	scene.spawn_queue = 0
 	for index in range(6):
@@ -34,6 +36,9 @@ func _run() -> void:
 	scene.hud.hide_overlay()
 	scene.spawn_queue = 0
 	scene._spawn_enemy()
+	scene.boss.spawn_timer = 0.0
+	scene.boss.global_position = scene.cell_to_world(Vector2(21, 11))
+	scene.boss.path_target = scene.boss.global_position
 	yield(scene.get_tree().create_timer(0.5), "timeout")
 	yield(_capture("boss"), "completed")
 	scene.debug_kill_all_enemies()

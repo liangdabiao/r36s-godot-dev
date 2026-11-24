@@ -8,6 +8,7 @@ signal dash_started(direction)
 signal special_started(direction, damage)
 
 const FRAME_SIZE := 48.0
+const CELL_SIZE := 16.0
 const BASE_MOVE_SPEED := 108.0
 const BASE_MAX_HP := 100.0
 const BASE_DAMAGE := 24.0
@@ -43,12 +44,18 @@ var dash_cooldown_timer := 0.0
 var special_cooldown_timer := 0.0
 var invuln_timer := 0.0
 var dash_direction := Vector2.DOWN
-var knockback_velocity := Vector2.ZERO
+var lane_cell := Vector2(15, 11)
+var lane_target := Vector2(15, 11)
+var lane_direction := Vector2.ZERO
+var desired_direction := Vector2.ZERO
 var upgrades := {}
+
+var arena
 
 onready var anim_sprite: AnimatedSprite = $AnimatedSprite
 
 func _ready() -> void:
+	arena = get_parent()
 	collision_layer = 1
 	collision_mask = 1
 	z_index = 5
@@ -94,20 +101,15 @@ func _physics_process(delta: float) -> void:
 	_tick_timers(delta)
 	if not alive:
 		velocity = Vector2.ZERO
-		move_and_slide(velocity)
 		return
 	if not control_enabled:
 		velocity = Vector2.ZERO
-		move_and_slide(velocity)
 		_idle_animation()
 		return
 
-	var input_direction := Vector2(
-		Input.get_axis("move_left", "move_right"),
-		Input.get_axis("move_up", "move_down")
-	)
-	if input_direction.length() > 0.1:
-		input_direction = input_direction.normalized()
+	var input_direction := _current_input_direction()
+	if input_direction != Vector2.ZERO:
+		desired_direction = input_direction
 		facing = input_direction
 		last_direction = _direction_name(input_direction)
 
@@ -124,15 +126,47 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("special") and special_cooldown_timer <= 0.0:
 		_start_special()
 
+	var movement_speed := move_speed
 	if dash_timer > 0.0:
-		velocity = dash_direction * dash_speed * max(0.35, dash_timer / dash_duration)
-	else:
-		velocity = input_direction * move_speed
-	velocity += knockback_velocity
-	knockback_velocity = knockback_velocity.move_toward(Vector2.ZERO, delta * 420.0)
-	move_and_slide(velocity)
-	_update_animation(input_direction)
+		desired_direction = dash_direction
+		movement_speed = dash_speed * max(0.35, dash_timer / dash_duration)
+	_advance_on_grid(delta, movement_speed)
+	_update_animation(lane_direction)
 	_update_hit_flash()
+
+func _advance_on_grid(delta: float, speed: float) -> void:
+	var target_position: Vector2 = arena.cell_to_world(lane_target)
+	if lane_direction == Vector2.ZERO:
+		if desired_direction != Vector2.ZERO and arena.is_walkable_cell(lane_cell + desired_direction):
+			lane_direction = desired_direction
+			lane_target = lane_cell + lane_direction
+			target_position = arena.cell_to_world(lane_target)
+		else:
+			global_position = arena.cell_to_world(lane_cell)
+			velocity = Vector2.ZERO
+			return
+
+	var distance := global_position.distance_to(target_position)
+	var step := speed * delta
+	if distance <= step + 0.001:
+		global_position = target_position
+		lane_cell = lane_target
+		if arena.is_walkable_cell(lane_cell + desired_direction):
+			lane_direction = desired_direction
+		elif arena.is_walkable_cell(lane_cell + lane_direction):
+			pass
+		else:
+			lane_direction = Vector2.ZERO
+			lane_target = lane_cell
+			velocity = Vector2.ZERO
+			return
+		lane_target = lane_cell + lane_direction
+		var leftover := step - distance
+		if leftover > 0.0:
+			global_position += lane_direction * min(leftover, CELL_SIZE)
+	else:
+		global_position += lane_direction * step
+	velocity = lane_direction * speed
 
 func _tick_timers(delta: float) -> void:
 	attack_cooldown_timer = max(0.0, attack_cooldown_timer - delta)
@@ -152,7 +186,8 @@ func _start_attack(input_direction: Vector2) -> void:
 	emit_signal("attack_started", facing)
 
 func _start_dash(input_direction: Vector2) -> void:
-	dash_direction = input_direction if input_direction.length() > 0.1 else facing
+	dash_direction = input_direction if input_direction != Vector2.ZERO else facing
+	desired_direction = dash_direction
 	facing = dash_direction
 	dash_timer = dash_duration
 	dash_cooldown_timer = dash_cooldown
@@ -173,17 +208,28 @@ func _start_special() -> void:
 	emit_signal("special_started", facing, special_damage)
 
 func _current_input_direction() -> Vector2:
-	var direction := Vector2(Input.get_axis("move_left", "move_right"), Input.get_axis("move_up", "move_down"))
-	return direction.normalized() if direction.length() > 0.1 else facing
+	var horizontal := Input.get_axis("move_left", "move_right")
+	var vertical := Input.get_axis("move_up", "move_down")
+	if abs(horizontal) > 0.1 and abs(vertical) > 0.1:
+		if Input.is_action_just_pressed("move_left") or Input.is_action_just_pressed("move_right"):
+			return Vector2(sign(horizontal), 0)
+		if Input.is_action_just_pressed("move_up") or Input.is_action_just_pressed("move_down"):
+			return Vector2(0, sign(vertical))
+		if abs(horizontal) > abs(vertical):
+			return Vector2(sign(horizontal), 0)
+		return Vector2(0, sign(vertical))
+	if abs(horizontal) > 0.1:
+		return Vector2(sign(horizontal), 0)
+	if abs(vertical) > 0.1:
+		return Vector2(0, sign(vertical))
+	return Vector2.ZERO
 
-func take_damage(amount: float, source_position: Vector2 = Vector2.ZERO) -> bool:
+func take_damage(amount: float, _source_position: Vector2 = Vector2.ZERO) -> bool:
 	if not alive or invuln_timer > 0.0 or dash_timer > 0.0:
 		return false
 	var actual := max(1.0, amount - armor)
 	hp = max(0.0, hp - actual)
 	invuln_timer = 0.72
-	if source_position != Vector2.ZERO:
-		knockback_velocity = (global_position - source_position).normalized() * 150.0
 	emit_signal("hp_changed", hp, max_hp)
 	if hp <= 0.0:
 		_die()
@@ -233,7 +279,10 @@ func reset_stats() -> void:
 	special_cooldown_timer = 0.0
 	invuln_timer = 0.0
 	velocity = Vector2.ZERO
-	knockback_velocity = Vector2.ZERO
+	lane_cell = Vector2(15, 11)
+	lane_target = Vector2(15, 11)
+	lane_direction = Vector2.ZERO
+	desired_direction = Vector2.ZERO
 	facing = Vector2.DOWN
 	last_direction = "down"
 	position = Vector2.ZERO

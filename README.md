@@ -4,7 +4,7 @@
 >
 > 目标设备是 **R36S**（640×480 屏，PortMaster / FRT 运行时）。电脑端用 **Godot 3.5.3** 开发，掌机用 `frt_3.5.2` 运行，同属 3.5.x。
 >
-> 2026-11-24 状态：玩法回归 **26 项全部通过**，新 PCK 已导出并通过 `--main-pack` 独立加载验证；标题 / 战斗 / 升级 / Boss / 结算截图已核对。掌机部署与验收流程见第 7、10 节。
+> 2026-11-25 状态：玩法回归 **32 项全部通过**，新 PCK 已导出并通过 `--main-pack` 独立加载验证；标题 / 战斗 / 升级 / Boss / 结算截图已核对。掌机部署与验收流程见第 7、10 节。
 
 ## 目录
 
@@ -66,8 +66,8 @@
 | 音频 | 9 个本地合成 WAV | `assets/audio/` |
 | 存档 | `user://spring_guard.cfg` | `game/Game.gd` |
 | 导出预设 | Linux/X11、HTML5 | `export_presets.cfg` |
-| 掌机产物 | `demo.pck` 746,416 字节（约 729 KiB） | `.build/demo/demo.pck` |
-| PCK SHA-256 | `fc1f1fe3b8d02b5682fdfbc46ec3a7c2fca6dfab7190d827429c92a2a03ce21f` | `sha256sum` |
+| 掌机产物 | `demo.pck` 751,328 字节（约 734 KiB） | `.build/demo/demo.pck` |
+| PCK SHA-256 | `2e14103cd78431ffbbc36b7dba8afa3b2c6cf404e1827109a2d11f5f4828c41d` | `sha256sum` |
 
 ---
 
@@ -87,7 +87,7 @@ GODOT="/c/Users/49707/AppData/Local/Temp/godot-3.5.3/Godot_v3.5.3-stable_win64.e
 # 启动检查：日志里不能有 SCRIPT ERROR
 "$GODOT" --headless --path . --no-window --quit
 
-# 玩法回归：26 项检查，退出码 0 表示全过
+# 玩法回归：32 项检查，退出码 0 表示全过
 "$GODOT" --headless --path . --script res://.build/test_game.gd
 
 # 截图：会短暂弹窗，输出到 docs/images/game_*.png
@@ -111,6 +111,8 @@ GODOT="/c/Users/49707/AppData/Local/Temp/godot-3.5.3/Godot_v3.5.3-stable_win64.e
 | 确认 / 开始 / 重开 | 攻击键或 Enter | A |
 | 升级界面选择 | 左右方向键 + 攻击确认，或 1 / 2 / 3 直选 | 十字键左右 + A |
 | 退出游戏 | Esc | Start |
+
+移动为四方向：松开方向后会沿当前道路继续，撞墙停止；在路口按新方向即可转弯，不会斜穿墙块。
 
 暂停界面里按闪避键可以直接重开一局。胜负结算后按攻击键再来一局。
 
@@ -145,10 +147,10 @@ python tools/build_game_assets.py
 | `map/tileset/` | 瓦片图 | 运行时用 `Grass.png`、`Water.png` 建 TileSet |
 | `fonts/` | JetBrains Mono | HUD 与特效文字 |
 | `tools/build_game_assets.py` | 素材生成脚本 | 裁缩图集 + 合成音效，路径按 `__file__` 推导 |
-| `.build/test_game.gd` | 玩法回归 | 26 项检查，覆盖完整一局 |
+| `.build/test_game.gd` | 玩法回归 | 32 项检查，覆盖完整一局 |
 | `.build/capture_game.gd` | 截图脚本 | 顺序导出 5 个状态截图 |
 | `.build/demo.sh` | PortMaster 启动器 | 找运行时、挂 squashfs、起 gptokeyb、跑 PCK |
-| `.build/demo/demo.pck` | 掌机资源包 | 746,416 字节 |
+| `.build/demo/demo.pck` | 掌机资源包 | 751,328 字节 |
 | `.build/demo/demo.gptk` | 掌机按键映射 | 十字键 / 摇杆 → WASD，A/B/X/Y → J/K/L |
 | `.agent/skills/engine-guide/` | Godot 3.5 / R36S / FRT Skill | 版本识别、构建验证、部署 |
 | `.agent/skills/asset-gen/` | apiz 素材生成 Skill | Flare 图像、H3 视频、语音 / 音乐 |
@@ -241,10 +243,10 @@ python tools/build_game_assets.py
 
 ### 5.1 竞技场
 
-- 草地 30×22 格（`x = -15..14`，`y = -11..10`），16px 瓦片，随机草花装饰。
-- 外圈水带碰撞，两个 3×3 小水池。
-- 相机挂在玩家下，`zoom = 0.5`（Godot 3 语义 = 放大 2 倍），平滑跟随，限制 `±256 / ±192`。
-- 场地边界 `Rect2(-232, -168, 464, 336)`；敌人生成边缘 `±218 / ±154`。
+- 固定 30×22 迷宫网格，16px 瓦片；浅色格是道路，深色树墙和水池不可通行。
+- 所有道路连通；玩家只在路口转向并沿道路中心移动，不会斜穿墙角的捷径。
+- 敌人出生在道路上，通过网格寻路绕墙追击；碰撞体收窄到道路宽度内，视觉体型保持不变。
+- 相机挂在玩家下，`zoom = 0.5`（Godot 3 语义 = 放大 2 倍），平滑跟随，限制 `±240 / ±176`。
 - 受击 / 技能 / Boss 死亡触发屏幕震动，强度随时间衰减。
 
 ### 5.2 玩家图集
@@ -324,13 +326,13 @@ python tools/build_game_assets.py
 
 | 项目 | 值 |
 |---|---|
-| 大小 | 746,416 字节（约 729 KiB） |
-| SHA-256 | `fc1f1fe3b8d02b5682fdfbc46ec3a7c2fca6dfab7190d827429c92a2a03ce21f` |
+| 大小 | 751,328 字节（约 734 KiB） |
+| SHA-256 | `2e14103cd78431ffbbc36b7dba8afa3b2c6cf404e1827109a2d11f5f4828c41d` |
 | 引擎 | 3.5.3 导出 / frt_3.5.2 运行 |
 | 主场景 | `res://scenes/Game.tscn` |
 | 脚本 | 编译为 `.gdc` + `.remap` |
 
-旧移动演示 PCK 约 25.67 MiB，因为 `all_resources` 把 76 张未用大图集也打进去了。现在导出预设排除了 `character/sprites/Character0_*`、`addons/*`、`tools/*`、`docs/*`、`.agent/*`、`.build/*`，只带实际用到的 48px 图集、瓦片、字体、音效和脚本，包体降到约 729 KiB。
+旧移动演示 PCK 约 25.67 MiB，因为 `all_resources` 把 76 张未用大图集也打进去了。现在导出预设排除了 `character/sprites/Character0_*`、`addons/*`、`tools/*`、`docs/*`、`.agent/*`、`.build/*`，只带实际用到的 48px 图集、瓦片、字体、音效和脚本，包体降到约 734 KiB。
 
 ### 7.4 更新游戏
 
@@ -511,8 +513,8 @@ git push -u origin main
 | Boss 生命 / 狂暴阈值 | 460 / ≤50% |
 | 玩家图集帧 | 48×48 |
 | 音效 | 9 个 WAV，22050Hz 单声道 |
-| PCK 大小 | 746,416 字节（约 729 KiB） |
-| PCK SHA-256 | `fc1f1fe3b8d02b5682fdfbc46ec3a7c2fca6dfab7190d827429c92a2a03ce21f` |
+| PCK 大小 | 751,328 字节（约 734 KiB） |
+| PCK SHA-256 | `2e14103cd78431ffbbc36b7dba8afa3b2c6cf404e1827109a2d11f5f4828c41d` |
 | 引擎 | 3.5.3 导出 / frt_3.5.2 运行 |
 
 ## 附录 B：术语
@@ -523,7 +525,7 @@ git push -u origin main
 | GLES2 | 兼容性更好的渲染后端，适合低功耗掌机 |
 | ETC1 / ETC2 | 移动端纹理压缩格式；本工程只开 ETC1 |
 | TileMap / TileSet | 瓦片地图节点 / 瓦片图集资源 |
-| KinematicBody2D | Godot 3 的 2D 运动体，用 `move_and_slide(velocity)` 移动 |
+| KinematicBody2D | Godot 3 的 2D 运动体；玩家按迷宫道路网格移动，敌人用 `move_and_slide(velocity)` 沿路追击 |
 | AnimatedSprite | 逐帧动画节点，用 `SpriteFrames` 管理 |
 | PCK | Godot 资源包，运行时 `--main-pack` 加载 |
 | FRT | 掌机 Godot 运行时（`frt_3.5.2`） |

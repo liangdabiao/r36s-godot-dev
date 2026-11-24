@@ -12,6 +12,34 @@ const WAVE_NAMES := ["SLIMES IN THE GRASS", "QUICK WINGS", "HEAVY FOOTSTEPS", "T
 const MAX_ENEMIES := 16
 const COMBO_DURATION := 3.2
 const SAVE_PATH := "user://spring_guard.cfg"
+const CELL_SIZE := 16.0
+const MAZE_WIDTH := 30
+const MAZE_HEIGHT := 22
+const MAZE_ORIGIN := Vector2(15, 11)
+const MAZE_LAYOUT := [
+	"##############################",
+	"#.......#...#.......#.......##",
+	"#.#.###.###.#.#.###.#.####..##",
+	"#.#.#.....#.#.#...#.#...#...##",
+	"#.#.#####.#.#.###.#.###.#.#.##",
+	"#.#.....#...#.#.#.#...~.#.#.##",
+	"#.###.#.#####.#.#.##..~...#.##",
+	"#...#.#.#.......#.#.....#.#.##",
+	"###.#.#.#.#####.#.###.###.#.##",
+	"#.....#.........#...#.......##",
+	"#.###.#.###.##....#.#######.##",
+	"#...#.......#.....#.......#.##",
+	"#..##.#.###.#....####..##.####",
+	"#.....#...#.#.#.........#...##",
+	"#.####~~~.#.#...#######.#...##",
+	"#.........#...#...#.....#.#.##",
+	"###.#.~~~########.#...###.#.##",
+	"#.#.#.....#...#...#.........##",
+	"#.#.###.#.#.#.#.####.###.#..##",
+	"#.......#...#...#...........##",
+	"##############################",
+	"##############################"
+]
 
 var state: int = State.TITLE
 var wave := 0
@@ -39,8 +67,8 @@ var hud
 var audio_players := []
 var sounds := {}
 var audio_index := 0
-var arena_bounds := Rect2(-232, -168, 464, 336)
-var pond_cells := {}
+var maze_cells := {}
+var walkable_cells := []
 
 func _ready() -> void:
 	pause_mode = Node.PAUSE_MODE_PROCESS
@@ -90,60 +118,70 @@ func _build_arena() -> void:
 	var water := TileMap.new()
 	water.name = "Water"
 	water.tile_set = water_set
-	water.cell_size = Vector2(16, 16)
+	water.cell_size = Vector2(CELL_SIZE, CELL_SIZE)
 	water.z_index = -2
 	add_child(water)
 	for x in range(-18, 18):
 		for y in range(-14, 14):
 			water.set_cell(x, y, 17)
-	_mark_pond_cells()
-	var grass := TileMap.new()
-	grass.name = "Grass"
-	grass.tile_set = grass_set
-	grass.cell_size = Vector2(16, 16)
-	grass.z_index = -1
-	add_child(grass)
+
+	maze_cells.clear()
+	walkable_cells.clear()
+	for row_index in range(MAZE_LAYOUT.size()):
+		var row: String = MAZE_LAYOUT[row_index]
+		for column_index in range(row.length()):
+			var cell := Vector2(column_index, row_index)
+			maze_cells[cell] = row[column_index]
+			if row[column_index] == ".":
+				walkable_cells.append(cell)
+
 	var random := RandomNumberGenerator.new()
 	random.seed = 3605
-	for x in range(-15, 15):
-		for y in range(-11, 11):
-			if pond_cells.has(Vector2(x, y)):
-				continue
-			var tile := 10
-			var roll := random.randi_range(1, 10)
-			if roll <= 2:
-				tile = [1, 2, 3, 5, 6, 7, 8, 9][random.randi_range(0, 7)]
-			grass.set_cell(x, y, tile)
-			if pond_cells.has(Vector2(x, y)):
-				water.set_cell(x, y, 17)
+	var grass := TileMap.new()
+	grass.name = "Maze"
+	grass.tile_set = grass_set
+	grass.cell_size = Vector2(CELL_SIZE, CELL_SIZE)
+	grass.z_index = -1
+	add_child(grass)
 	var decor := TileMap.new()
-	decor.name = "Decor"
+	decor.name = "RoadDetails"
 	decor.tile_set = grass_set
-	decor.cell_size = Vector2(16, 16)
+	decor.cell_size = Vector2(CELL_SIZE, CELL_SIZE)
 	decor.z_index = 0
 	add_child(decor)
-	for x in range(-14, 15):
-		for y in range(-10, 11):
-			if pond_cells.has(Vector2(x, y)) or abs(x) < 2 and abs(y) < 2:
-				continue
-			if random.randi_range(1, 100) <= 5:
-				decor.set_cell(x, y, random.randi_range(11, 16))
-	var wall_set := _make_tileset(water_texture, {17: Rect2(0, 0, 16, 16)}, true)
+	for cell in maze_cells.keys():
+		var map_cell: Vector2 = cell - MAZE_ORIGIN
+		match maze_cells[cell]:
+			".":
+				grass.set_cell(int(map_cell.x), int(map_cell.y), 11)
+				if abs(cell.x - MAZE_ORIGIN.x) > 1 or abs(cell.y - MAZE_ORIGIN.y) > 1:
+					if random.randi_range(1, 100) <= 7:
+						decor.set_cell(int(map_cell.x), int(map_cell.y), random.randi_range(12, 16))
+			"#":
+				var wall_tile: int = [1, 2, 3, 5, 6, 7, 8, 9][random.randi_range(0, 7)]
+				grass.set_cell(int(map_cell.x), int(map_cell.y), wall_tile)
+
+	var collision_image := Image.new()
+	collision_image.create(16, 16, false, Image.FORMAT_RGBA8)
+	collision_image.fill(Color(0, 0, 0, 0))
+	var collision_texture := ImageTexture.new()
+	collision_texture.create_from_image(collision_image)
+	var wall_set := _make_tileset(collision_texture, {1: Rect2(0, 0, 16, 16)}, true)
 	var walls := TileMap.new()
-	walls.name = "Walls"
+	walls.name = "MazeWalls"
 	walls.tile_set = wall_set
-	walls.cell_size = Vector2(16, 16)
-	walls.z_index = -1
+	walls.cell_size = Vector2(CELL_SIZE, CELL_SIZE)
+	walls.z_index = -3
 	add_child(walls)
-	for x in range(-18, 18):
-		for y in range(-14, 14):
-			if x < -15 or x > 14 or y < -11 or y > 10 or pond_cells.has(Vector2(x, y)):
-				walls.set_cell(x, y, 17)
+	for cell in maze_cells.keys():
+		if maze_cells[cell] != ".":
+			var map_cell: Vector2 = cell - MAZE_ORIGIN
+			walls.set_cell(int(map_cell.x), int(map_cell.y), 1)
 	if is_instance_valid(camera):
-		camera.limit_left = -256
-		camera.limit_top = -192
-		camera.limit_right = 256
-		camera.limit_bottom = 192
+		camera.limit_left = -240
+		camera.limit_top = -176
+		camera.limit_right = 240
+		camera.limit_bottom = 176
 
 func _make_tileset(texture: Texture, regions: Dictionary, collision: bool) -> TileSet:
 	var tiles := TileSet.new()
@@ -158,13 +196,46 @@ func _make_tileset(texture: Texture, regions: Dictionary, collision: bool) -> Ti
 			tiles.tile_set_shapes(id, [shape])
 	return tiles
 
-func _mark_pond_cells() -> void:
-	for x in range(5, 8):
-		for y in range(-6, -3):
-			pond_cells[Vector2(x, y)] = true
-	for x in range(-7, -4):
-		for y in range(4, 7):
-			pond_cells[Vector2(x, y)] = true
+func world_to_cell(world_position: Vector2) -> Vector2:
+	return Vector2(
+		int(floor(world_position.x / CELL_SIZE + 0.5)) + int(MAZE_ORIGIN.x),
+		int(floor(world_position.y / CELL_SIZE + 0.5)) + int(MAZE_ORIGIN.y)
+	)
+
+func cell_to_world(cell: Vector2) -> Vector2:
+	return (cell - MAZE_ORIGIN) * CELL_SIZE
+
+func is_walkable_cell(cell: Vector2) -> bool:
+	var key := Vector2(int(cell.x), int(cell.y))
+	return maze_cells.has(key) and maze_cells[key] == "."
+
+func get_path_target(from_world: Vector2, to_world: Vector2) -> Vector2:
+	var start := world_to_cell(from_world)
+	var goal := world_to_cell(to_world)
+	if not is_walkable_cell(start) or not is_walkable_cell(goal):
+		return from_world
+	if start == goal:
+		return cell_to_world(start)
+	var came_from := {start: start}
+	var queue := [start]
+	var front := 0
+	var offsets := [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]
+	while front < queue.size():
+		var current: Vector2 = queue[front]
+		front += 1
+		if current == goal:
+			break
+		for offset in offsets:
+			var next: Vector2 = current + offset
+			if is_walkable_cell(next) and not came_from.has(next):
+				came_from[next] = current
+				queue.append(next)
+	if not came_from.has(goal):
+		return from_world
+	var step := goal
+	while came_from[step] != start:
+		step = came_from[step]
+	return cell_to_world(step)
 
 func _build_audio() -> void:
 	for sound_name in ["swing", "hit", "hurt", "dash", "pickup", "special", "wave", "win", "lose"]:
@@ -304,22 +375,19 @@ func _spawn_enemy() -> void:
 		hud.show_message("MOSS KING AWAKENS", 1.6)
 
 func _spawn_position() -> Vector2:
-	var position := Vector2.ZERO
-	for attempt in range(12):
-		var side := randi() % 4
-		match side:
-			0:
-				position = Vector2(rand_range(-120, 120), -64)
-			1:
-				position = Vector2(rand_range(-120, 120), 64)
-			2:
-				position = Vector2(-120, rand_range(-60, 60))
-			_:
-				position = Vector2(120, rand_range(-60, 60))
-		var cell := Vector2(int(floor(position.x / 16.0)), int(floor(position.y / 16.0)))
-		if position.distance_to(player.global_position) > 100 and not pond_cells.has(cell):
-			break
-	return position
+	var nearby := []
+	var fallback := []
+	for cell in walkable_cells:
+		var position := cell_to_world(cell)
+		var distance := position.distance_to(player.global_position)
+		if distance > 100.0 and distance < 190.0:
+			nearby.append(position)
+		elif distance > 100.0:
+			fallback.append(position)
+	var candidates := nearby if not nearby.empty() else fallback
+	if candidates.empty():
+		return cell_to_world(MAZE_ORIGIN)
+	return candidates[randi() % candidates.size()]
 
 func _on_player_attack_started(_direction: Vector2) -> void:
 	_play_sound("swing")
