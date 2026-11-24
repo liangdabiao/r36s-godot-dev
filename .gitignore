@@ -1,0 +1,19 @@
+# Godot import caches
+.import/
+import/
+export.cfg
+
+# Generated translations
+*.translation
+
+# Godot Mono
+.mono/
+data_*/
+
+# Local API smoke tasks and transient logs
+.build/apiz-smoke/
+.build/*.log
+
+# OS/editor metadata
+.DS_Store
+Thumbs.db
