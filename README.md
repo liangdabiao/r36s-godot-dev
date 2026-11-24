@@ -1,101 +1,128 @@
-# R36S × Godot 3.5 农场风格 2D Demo —— 开发与上机指南（中文大白话版）
+# Spring Guard（清泉守卫）—— R36S × Godot 3.5 完整小游戏开发与上机指南
 
-> 这是一个已经在真实 R36S 掌机上显示并玩起来的最小 Godot 3 项目：能用地、看角色、用十字键或左摇杆移动，作为后续游戏开发的模板。
+> 本工程已经从"只能走路的移动演示"扩展成一个**完整可玩的 2D 动作守卫小游戏**：五波敌人、三种小怪、最终 Boss、剑击 / 闪避 / 范围技能、波间三选一升级、连击计分、掉落回血、暂停 / 胜负结算、最高分存档和合成音效。
 >
-> 2026-11-24 用户已确认掌机画面正常、游戏可玩。本文同时记录电脑端开发验证、FRT/PortMaster 上机流程，以及本项目 `.agent/skills/` 的游戏开发与素材生成工作流。
+> 目标设备是 **R36S**（640×480 屏，PortMaster / FRT 运行时）。电脑端用 **Godot 3.5.3** 开发，掌机用 `frt_3.5.2` 运行，同属 3.5.x。
+>
+> 2026-11-24 状态：玩法回归 **24 项全部通过**，新 PCK 已导出并通过 `--main-pack` 独立加载验证；标题 / 战斗 / 升级 / Boss / 结算截图已核对。掌机部署与验收流程见第 7、10 节。
 
 ## 目录
 
-1. [这个工程是什么](#1-这个工程是什么)
+1. [游戏是什么](#1-游戏是什么)
 2. [快速开始](#2-快速开始)
 3. [目录结构与文件职责](#3-目录结构与文件职责)
-4. [场景结构](#4-场景结构)
-5. [玩家控制逻辑](#5-玩家控制逻辑)
-6. [动画资源](#6-动画资源)
-7. [地图与瓦片](#7-地图与瓦片)
-8. [关键配置速查](#8-关键配置速查)
-9. [R36S / PortMaster 部署](#9-r36s--portmaster-部署)
-10. [已知限制](#10-已知限制)
-11. [二次开发指南](#11-二次开发指南)
-12. [常见问题](#12-常见问题)
-13. [Skill 与开发自动化](#13-skill-与开发自动化)
-14. [从开发到上机的完整流程](#14-从开发到上机的完整流程)
-15. [附录 A：数值速查](#附录-a数值速查)
-16. [附录 B：术语](#附录-b术语)
+4. [玩法与数值](#4-玩法与数值)
+5. [场景、素材与音效](#5-场景素材与音效)
+6. [输入映射](#6-输入映射)
+7. [R36S / PortMaster 部署](#7-r36s--portmaster-部署)
+8. [已知限制](#8-已知限制)
+9. [Skill 与素材生成](#9-skill-与素材生成)
+10. [从开发到上机的完整流程](#10-从开发到上机的完整流程)
+11. [发布到 GitHub](#11-发布到-github)
+12. [附录 A：数值速查](#附录-a数值速查)
+13. [附录 B：术语](#附录-b术语)
 
 ---
 
-## 1. 这个工程是什么
+## 1. 游戏是什么
 
-这是一个 **Godot 3.5 的 2D 俯视角小 Demo**：美术是一整套农场/生存题材的角色素材（空手、持斧头、锄头、钓竿、剑、盾等），但实际做出来的玩法只有 **四方向走路 + 待机动画**。
+**Spring Guard（清泉守卫）** 是一个俯视角单屏动作游戏：你扮演守卫，在草地竞技场上挡住五波进攻，最后击败 Boss **Moss King**。
 
-它被组织成 **PortMaster 掌机端口**的形式，目标设备是 **R36S**（640×480 屏），可以把它当成"把 Godot 3 游戏移植到 R36S 的最小可运行模板"，而不是一个完成品。
+一局游戏的完整循环：
 
-### 启动后能看到什么
+1. 标题界面显示操作说明和历史最高分，按攻击键或 START RUN 开始；
+2. 进入第 1 波，敌人从场地边缘生成并追向你；
+3. 用剑击清怪，闪避躲冲锋，范围技能清场；
+4. 击杀掉宝石（加分）和心（回血），连续击杀叠连击倍率；
+5. 清完一波弹出**三选一升级**，选完进入下一波；
+6. 第 5 波出现 Boss，半血狂暴并召唤小怪；
+7. 击败 Boss 胜利，或血量归零失败，结算界面显示分数 / 击杀 / 波次 / 用时 / 最高分；
+8. 最高分写入本地存档，下次启动仍在。
 
-- 一块 10×10 格的草地，外围是一圈可见且有碰撞的水；
-- 一个角色站在草地正中间，相机平滑跟随并限制在水域范围内；
-- 屏幕左上角一行 `Welcome!` 文字；
-- 可以用 **W/A/S/D**、手柄左摇杆或掌机十字键走动，角色有上/下/左/右的走路和待机动画；
-- 没有任何目标、交互、敌人、物品、声音、菜单或存档。
+### 实际运行截图
 
-![Godot 3.5.3 实际运行画面](docs/images/gameplay.png)
+以下截图均由 `.build/capture_game.gd` 在 Godot 3.5.3 真实渲染后导出，不是示意图。
+
+| 标题界面 | 战斗 / HUD |
+|---|---|
+| ![标题界面](docs/images/game_title.png) | ![战斗画面](docs/images/game_combat.png) |
+
+| 波间升级 | Boss 战 | 胜利结算 |
+|---|---|---|
+| ![升级三选一](docs/images/game_upgrade.png) | ![Boss 战](docs/images/game_boss.png) | ![胜利结算](docs/images/game_victory.png) |
 
 ### 项目速览
 
 | 项目 | 值 | 依据 |
 |---|---|---|
-| 工程名 | `demo` | `project.godot` |
-| 引擎 | Godot **3.5.3**（PCK 头记录的版本） | `.build/demo/demo.pck` |
-| 掌机运行时 | `frt_3.5.2`（与 3.5.3 同属 3.5.x） | `.build/demo.sh` |
-| 脚本语言 | GDScript（Godot 3 语法） | `character/scripts/Player.gd` |
-| 渲染后端 | GLES2；只启用 ETC1，未启用 ETC2 | `project.godot` |
+| 工程名 | `Spring Guard` | `project.godot` |
+| 引擎 | Godot **3.5.3** | 本机验证 |
+| 掌机运行时 | `frt_3.5.2` | `.build/demo.sh` |
+| 脚本语言 | GDScript（Godot 3 语法） | `game/*.gd`、`character/scripts/Player.gd` |
+| 渲染后端 | GLES2，ETC1 开 / ETC2 关 | `project.godot` |
 | 设计分辨率 | 640×480，拉伸模式 `2d` | `project.godot` |
 | 主场景 | `res://scenes/Game.tscn` | `project.godot` |
-| 相机 | 挂在 `Player` 下，`zoom = 0.5`（Godot 3 里等于放大 2 倍），平滑跟随并限制在水域范围 | `scenes/Game.tscn:523-533` |
-| 玩法脚本数量 | 1 个（`Player.gd`），没有任何其他 `.gd` | 全工程检索 |
-| 音频 / UI / 存档 | 无 | 工程内无音频文件、无 UI 场景、无存档代码 |
-| 目标设备 | R36S（PortMaster / Linux 掌机） | README、`demo.sh` |
+| 玩法脚本 | `Game.gd`、`Player.gd`、`Enemy.gd`、`Pickup.gd`、`EffectsLayer.gd`、`HUD.gd` | `game/`、`character/scripts/` |
+| 音频 | 9 个本地合成 WAV | `assets/audio/` |
+| 存档 | `user://spring_guard.cfg` | `game/Game.gd` |
 | 导出预设 | Linux/X11、HTML5 | `export_presets.cfg` |
-| 已构建产物 | `demo.pck`（25.67 MiB）+ 启动脚本 + 手柄映射 | `.build/` |
-| 真机状态 | 2026-11-24 用户确认 R36S 画面正常、游戏可玩 | 上机验收 |
-| 角色素材 | 78 张 PNG，约 35 MB，只有 2 张被场景引用 | `character/sprites/` |
+| 掌机产物 | `demo.pck` 745,856 字节（约 728 KiB） | `.build/demo/demo.pck` |
+| PCK SHA-256 | `5f60d4bbbc54abcabaf1683f4b4c7c6b066d6f849765e5cc5aa06673ad99db3a` | `sha256sum` |
 
 ---
 
 ## 2. 快速开始
 
-### 2.1 在电脑上打开
+### 2.1 在电脑上运行
 
-1. 安装 **Godot 3.5.x**（推荐 3.5.3）。**不要用 Godot 4.x**：这个工程用的是 `KinematicBody2D`、`onready`、`AnimatedSprite`、`PoolIntArray` 等 Godot 3 API，4.x 打不开也跑不了。
-2. 在项目管理器里导入本目录的 `project.godot`。
-3. 首次打开会重新导入约 175 个资源到 `import/`，等进度条结束。
-4. 按 **F5** 运行，主场景是 `scenes/Game.tscn`。
+1. 安装 **Godot 3.5.x**（推荐 3.5.3）。**不要用 Godot 4.x**：工程用的是 `KinematicBody2D`、`onready`、`yield`、`PoolVector2Array`、`update()` 等 Godot 3 API。
+2. 项目管理器导入本目录 `project.godot`，等资源导入完成。
+3. 按 **F5** 运行，主场景 `scenes/Game.tscn`。
 
-`addons/godot-git-plugin` 是编辑器里的 Git 插件，和游戏运行无关，可以忽略。
+命令行验证（Git Bash，按本机实际路径改 `GODOT`）：
+
+```bash
+GODOT="/c/Users/49707/AppData/Local/Temp/godot-3.5.3/Godot_v3.5.3-stable_win64.exe"
+
+# 启动检查：日志里不能有 SCRIPT ERROR
+"$GODOT" --headless --path . --no-window --quit
+
+# 玩法回归：24 项检查，退出码 0 表示全过
+"$GODOT" --headless --path . --script res://.build/test_game.gd
+
+# 截图：会短暂弹窗，输出到 docs/images/game_*.png
+"$GODOT" --path . --script res://.build/capture_game.gd
+
+# 导出掌机 PCK（不需要二进制导出模板）
+"$GODOT" --headless --path . --export-pack "Linux/X11" .build/demo/demo.pck
+```
+
+> Godot 3 的某些运行时错误只写日志、退出码仍为 0，所以**必须看日志**，不能只看退出码。
 
 ### 2.2 操作方式
 
-| 操作 | 按键 / 输入 |
-|---|---|
-| 移动 | **W / A / S / D**（物理键位，按键盘位置识别，与输入法/布局无关） |
-| 手柄（桌面调试） | 左摇杆 X/Y 轴，InputMap 死区 0.5，与键盘统一由 `Input.get_axis()` 读取 |
-| 攻击 / 交互 / 暂停 / 菜单 | **没有绑定任何按键** |
+| 动作 | 电脑键盘 / 鼠标 | 掌机按键 |
+|---|---|---|
+| 移动 | W / A / S / D | 十字键或左摇杆 |
+| 剑击 | J / 空格 / 鼠标左键 | A 或 Y（R1 备用） |
+| 闪避 | K | B（R2 / L2 备用） |
+| 范围技能 Spring Burst | L / E | X（L1 备用） |
+| 暂停 / 恢复 | P | Select |
+| 确认 / 开始 / 重开 | 攻击键或 Enter | A |
+| 升级界面选择 | 左右方向键 + 攻击确认，或 1 / 2 / 3 直选 | 十字键左右 + A |
+| 退出游戏 | Esc | Start |
 
-注意：Godot 的 InputMap 没有直接绑定方向键；R36S 上由 `demo.gptk` 把十字键和左摇杆转成 W/A/S/D，所以掌机两种方向输入都能用。电脑上请用 WASD 或手柄左摇杆。
+暂停界面里按闪避键可以直接重开一局。胜负结算后按攻击键再来一局。
 
-### 2.3 导出
+### 2.3 重新生成角色图集和音效
 
-| 预设 | 平台 | 预设输出路径 | 仓库里是否有产物 |
-|---|---|---|---|
-| `Linux/X11` | Linux 64 位 | `Build/demo.x86_64` | 没有 |
-| `HTML5` | Web | `.build/demo.html` | 没有（只有 PCK） |
+角色大图集和音效都由入库脚本生成，不依赖临时目录：
 
-两个预设都是 `export_filter="all_resources"`，会把工程里所有资源一并导出。当前仓库里真正存在的是 `.build/demo/demo.pck`（给掌机运行时用的资源包）。
+```bash
+python tools/build_game_assets.py
+```
 
-### 2.4 在 R36S 上运行
-
-把文件按第 9 节的目录结构放到机器上即可；启动流程、按键映射和排障都在第 9 节。
+它会从 `character/sprites/Character0_*.png` 裁缩出 48px 横向图集到 `assets/sprites/`，并合成 9 个 22050Hz 单声道 WAV 到 `assets/audio/`。改完素材后让 Godot 重新导入再导出 PCK。
 
 ---
 
@@ -103,478 +130,256 @@
 
 | 路径 | 内容 | 说明 |
 |---|---|---|
-| `project.godot` | 工程配置 | 主场景、窗口、渲染、输入映射、编辑器插件注册 |
-| `export_presets.cfg` | 导出预设 | Linux/X11 + HTML5 |
-| `default_env.tres` | 默认环境资源 | 里面是 ProceduralSky，主要面向 3D；当前 2D 画面基本用不到 |
-| `README.md` | 中文大白话项目说明 | 玩法、开发、Skill、上机和发布流程 |
-| `.agent/skills/engine-guide/` | Godot 3.5 / R36S / FRT 开发 Skill | 版本识别、GDScript、构建验证、PortMaster 部署 |
-| `.agent/skills/asset-gen/` | apiz 优先的素材生成 Skill | Flare 图像、H3 视频、语音、音乐、本地 3D/动画工具 |
-| `docs/FRT整合说明.md` | FRT 深入说明 | 版本、运行时、输入、退出、排障 |
-| `docs/images/gameplay.png` | 实际运行截图 | README 展示与验收证据 |
-| `r36s.md` | 脱敏后的连接与部署备忘 | 不保存密码或 API Key |
-| `scenes/Game.tscn` | **唯一场景** | 相机、两块 TileMap、玩家、Welcome 文字 |
-| `scenes/JetBrainsMono-VariableFont_wght.ttf` | 字体副本 | 与 `fonts/` 里那份 MD5 完全相同，场景未引用，属于重复文件 |
-| `character/scripts/Player.gd` | **唯一脚本** | 玩家移动与动画切换 |
-| `character/sprites/` | 78 张角色 PNG | 只有 `Character0_Idle.png`、`Character0_Walk.png` 被场景引用 |
-| `map/tileset/` | 5 张瓦片图 | 只有 `Grass.png`、`Water.png` 被 TileSet 使用 |
-| `fonts/JetBrainsMono-VariableFont_wght.ttf` | 字体 | `WelcomeText` 用的就是它 |
-| `addons/godot-git-plugin/` | Godot Git 插件 v2.1.0 | 编辑器内做版本控制用，含 Windows/macOS/Linux 原生库（约 26 MB），不参与玩法 |
-| `import/` | 当前导入缓存 | 175 个文件，Godot 自动生成；场景里的 `.import` 都指向这里 |
-| `.import/` | 旧版导入缓存 | 24 个文件，含已经不存在的 `Idle.png`、`Walk.png`、`icon.png` 缓存，属于历史残留 |
-| `.build/` | 掌机构建产物 | `demo.sh` 启动脚本、`demo/demo.pck`、`demo/demo.gptk` |
+| `project.godot` | 工程配置 | 主场景、640×480、GLES2、输入映射 |
+| `export_presets.cfg` | 导出预设 | Linux/X11 输出 `.build/demo/demo.pck`；排除旧大图集 / addons / tools / docs / .agent / .build |
+| `scenes/Game.tscn` | 主场景 | 游戏总管 + 玩家 + 相机 + 碰撞盒 |
+| `game/Game.gd` | 游戏总管 | 状态机、波次、生成、计分、升级、存档、音效、震屏 |
+| `game/Enemy.gd` | 敌人 | slime / bat / brute / boss 的 AI、冲锋、狂暴、程序化绘制 |
+| `game/Pickup.gd` | 掉落物 | 宝石 / 心，吸附、收集、过期闪烁 |
+| `game/EffectsLayer.gd` | 特效层 | 打击火花、伤害数字、剑光、范围环 |
+| `game/HUD.gd` | 界面 | 血条 / 波次 / 分数 / 连击 / 冷却 / Boss 条 / 标题 / 升级 / 暂停 / 结算 |
+| `game/GameFont.tres` | 字体资源 | JetBrains Mono DynamicFont |
+| `character/scripts/Player.gd` | 玩家 | 移动、剑击、闪避、技能、受伤、升级、动画 |
+| `assets/sprites/` | 5 张 48px 玩家图集 | idle / run / attack / hurt / die，各 3 方向 |
+| `assets/audio/` | 9 个 WAV | swing / hit / hurt / dash / pickup / special / wave / win / lose |
+| `map/tileset/` | 瓦片图 | 运行时用 `Grass.png`、`Water.png` 建 TileSet |
+| `fonts/` | JetBrains Mono | HUD 与特效文字 |
+| `tools/build_game_assets.py` | 素材生成脚本 | 裁缩图集 + 合成音效，路径按 `__file__` 推导 |
+| `.build/test_game.gd` | 玩法回归 | 24 项检查，覆盖完整一局 |
+| `.build/capture_game.gd` | 截图脚本 | 顺序导出 5 个状态截图 |
+| `.build/demo.sh` | PortMaster 启动器 | 找运行时、挂 squashfs、起 gptokeyb、跑 PCK |
+| `.build/demo/demo.pck` | 掌机资源包 | 745,856 字节 |
+| `.build/demo/demo.gptk` | 掌机按键映射 | 十字键 / 摇杆 → WASD，A/B/X/Y → J/K/L |
+| `.agent/skills/engine-guide/` | Godot 3.5 / R36S / FRT Skill | 版本识别、构建验证、部署 |
+| `.agent/skills/asset-gen/` | apiz 素材生成 Skill | Flare 图像、H3 视频、语音 / 音乐 |
+| `docs/FRT整合说明.md` | FRT 深入说明 | 运行时、输入、退出、排障 |
+| `docs/images/` | 实际截图 | README 展示与验收证据 |
+| `r36s.md` | 脱敏连接备忘 | 不保存密码或 API Key |
+| `character/sprites/` | 原始 78 张角色 PNG | 只作为生成脚本输入，**不进 PCK** |
+| `addons/godot-git-plugin/` | 编辑器 Git 插件 | 不参与玩法，不进 PCK |
 
-全工程约 388 个文件；其中 `character/sprites` 约 35 MB，`import/` 约 26 MB，`addons/` 约 26 MB。
-
-> `import/` 和 `.import/` 都是生成物，已经由 `.gitignore` 忽略；删掉后下次打开编辑器会重新导入，属于正常现象。`.build/demo.pck`、`demo.sh`、`demo.gptk` 和 Skill 回归测试会保留在仓库中，API 冒烟任务与临时日志不会推送。
-
----
-
-## 4. 场景结构
-
-### 4.1 节点树
-
-`scenes/Game.tscn` 的节点结构如下（括号内为关键属性）：
-
-```text
-Node2D（场景根）
-├── Water（TileMap, visible = true, 水域碰撞）
-│   └── Grass（TileMap）
-├── Player（KinematicBody2D, script = Player.gd, _move_speed = 40）
-│   ├── Camera2D（current = true, zoom = 0.5, 平滑跟随，限制在水域范围）
-│   ├── Collision（CollisionShape2D）
-│   └── AnimatedSprite（scale = 0.07）
-└── WelcomeText（Label）
-```
-
-### 4.2 像素换算（很容易踩的坑）
-
-Godot 3 的 `Camera2D.zoom` 与 Godot 4 **相反**：Godot 3 里 **数值越小越放大**，`zoom = 0.5` 表示 **放大 2 倍**（可视世界范围变成屏幕的一半）。
-
-本工程的换算链：
-
-| 层级 | 数值 | 换算 |
-|---|---|---|
-| 源瓦片 | 16×16 | `Grass.png` / `Water.png` 的原始像素 |
-| 世界瓦片 | 32×32 | `Water` TileMap 节点 `scale = 2`，`Grass` 作为子节点继承缩放 |
-| 屏幕瓦片 | 64×64 | 相机 `zoom = 0.5` 再放大 2 倍 |
-| 可视世界范围 | 320×240 | 640×480 ÷ 2 |
-| 草地 | 10×10 格 = 320×320 世界像素 | 屏幕上 640×640，正好铺满宽度，高度超出屏幕 160 像素 |
-| 角色帧 | 460×460 → `scale 0.07` ≈ 32×32 世界像素 | 屏幕上约 64×64 |
-| 移动速度 | 40 世界像素/秒 | 屏幕上 80 像素/秒，横穿一屏约 8 秒 |
-| Welcome 字号 | 64 × `rect_scale 0.15885` ≈ 10 世界像素 | 屏幕上约 20 像素 |
-
-这里特意用**节点缩放**而不是 `cell_custom_transform`：Godot 3 的 `cell_custom_transform` 只放大绘制，不会同步放大 TileMap 的碰撞形状和格子坐标。节点 `scale = 2` 会同时作用于绘制与碰撞，避免"看得见的水和撞不到的水"错位。
-
-当前表现：
-
-- 相机挂在 `Player` 下面，开启平滑跟随和地图边界限制，角色走动时画面会跟着移动。
-- 水环现在可见且有碰撞，角色走到草地边缘会被水挡住，不会走进地图外。
-- 水环外边界为 `x = -10..9`、`y = -8..7`，相机限制在这个范围内。
-
-### 4.3 各节点说明
-
-| 节点 | 类型 | 关键属性 | 作用 |
-|---|---|---|---|
-| `Camera2D` | Camera2D | `Player` 子节点，`zoom = (0.5, 0.5)`，平滑跟随，边界 `(-320,-256)..(320,256)` | 2 倍放大，镜头跟随角色并限制在水域范围内 |
-| `Water` | TileMap | `visible = true`，`scale = (2,2)`，220 个格子，水 tile 有碰撞形状 | 围着草地的水边框，同时作为不可通行的地形 |
-| `Grass` | TileMap | `Water` 子节点，继承 `scale = 2`，100 个格子，10×10 | 草地地面，全部可走 |
-| `Player` | KinematicBody2D | 挂 `Player.gd`，`_move_speed = 40` | 玩家本体，起点在世界原点 |
-| `Collision` | CollisionShape2D | 矩形 13×23，位置 `(-0.5, -6.5)` | 角色身体中下部的碰撞盒，与水碰撞配合实现阻挡 |
-| `AnimatedSprite` | AnimatedSprite | `scale = (0.07, 0.07)`，6 个动画、42 帧 | 角色动画，默认 `idle_down` |
-| `WelcomeText` | Label | 64 px 字体 × 0.15885 缩放，文本 `Welcome!` | 占位文字，换算到屏幕上大约在左上角 `(10, 12)` 处 |
-
-### 4.4 地图数据形状
-
-- **草地**：`x = -5..4`、`y = -5..4`，完整 10×10 矩形，共 100 格，全部可走。
-- **水**：外框 `x = -10..9`、`y = -8..7`，共 220 格；中间留出完整的 `x = -5..4`、`y = -5..4` 10×10 区域给草地。原数据中与草地外圈重叠的 36 个水格已经移除。
-- **碰撞**：水 tile 17 配置了 16×16 的矩形碰撞形状，经 `Water` 节点 2 倍缩放后是 32×32 世界像素，正好覆盖一个水格。草地没有碰撞，玩家可以在草地内自由移动，进入水格会被挡住。
-- 草地以外的区域没有瓦片覆盖，露出视口底色；相机边界限制在水环外沿。
+`import/`、`.import/` 是 Godot 生成缓存，已被 `.gitignore` 忽略；删掉后重新打开编辑器会重建。
 
 ---
 
-## 5. 玩家控制逻辑
+## 4. 玩法与数值
 
-全部逻辑在 `character/scripts/Player.gd`（55 行）。
+以下数值均按当前源码核对。
 
-### 5.1 执行流程
+### 4.1 玩家基础属性
 
-1. `_physics_process()` 每物理帧调用 `_move()`。
-2. `_move()` 用 `Input.get_axis("move_left", "move_right")` 和 `Input.get_axis("move_up", "move_down")` 读取方向。
-3. `Input.get_axis()` 会综合 InputMap 中绑定到这些动作的键盘和手柄轴，不需要再手动切换输入模式。
-4. 方向向量归一化（斜向不会更快），乘以 `_move_speed`。
-5. `move_and_slide(velocity)` 移动；Godot 3 内部会乘 delta，所以速度单位是"像素/秒"。
-6. 有输入播放走路动画，无输入播放待机动画。
-7. 撞到水域碰撞形状时，`move_and_slide` 会沿墙滑动并阻止角色进入水里。
-
-### 5.2 函数职责
-
-| 函数 | 行号 | 职责 |
+| 属性 | 值 | 来源 |
 |---|---|---|
-| `_physics_process(delta)` | 9-10 | 每物理帧调用 `_move()`（`delta` 没有使用） |
-| `_move()` | 12-25 | 读轴、归一化、移动、切动画 |
-| `_play_walk_animation(dir)` | 27-44 | 按方向播放走路动画，处理左右翻转 |
-| `_play_idle_animation()` | 46-55 | 按最后朝向播放待机动画 |
+| 移动速度 | 108 像素/秒 | `Player.gd` |
+| 最大生命 | 100 | `Player.gd` |
+| 剑击伤害 | 24 | `Player.gd` |
+| 攻击间隔 | 0.38 秒 | `Player.gd` |
+| 攻击范围 | 50 像素（加敌人半径） | `Player.gd` / `Game.gd` |
+| 闪避冷却 | 1.15 秒 | `Player.gd` |
+| 闪避速度 / 持续 | 340 / 0.16 秒 | `Player.gd` |
+| 技能冷却 | 6 秒 | `Player.gd` |
+| 技能伤害 / 半径 | 46 / 112 像素 | `Player.gd` / `Game.gd` |
+| 受击无敌 | 0.72 秒 | `Player.gd` |
+| 护甲减伤 | 每次受击减 armor，至少保留 1 点伤害 | `Player.gd` |
 
-### 5.3 键盘与手柄的差异
+剑击是前方扇形判定：距离 ≤ 攻击范围 + 敌人半径，且方向点积 > 0.18。闪避期间短暂无敌。范围技能以玩家为中心 112 像素内全体受伤。
 
-| 输入源 | 读取方式 | 死区 | 特点 |
-|---|---|---|---|
-| 键盘 | `Input.get_axis()` 读取 InputMap 的 A/D/W/S | 无 | 数字输入，斜向由归一化保证速度一致 |
-| 原生手柄 | `Input.get_axis()` 读取 InputMap 的轴 0/1 | InputMap 中配置 0.5 | 支持摇杆推杆幅度；按钮当前没有绑定任何动作 |
-| 掌机 gptokeyb | 十字键和左摇杆都被转成 W/A/S/D | gptokeyb 自身有死区配置 | 对游戏来说仍然表现为键盘输入 |
+### 4.2 敌人
 
-去掉了原来的 `using_gamepad` 模式切换：只要收到一次手柄事件就永久切到手柄分支，在 gptokeyb 与 FRT 同时提供输入时容易造成"十字键时灵时不灵"。现在两种输入统一走 `Input.get_axis()`。
+| 类型 | 生命 | 速度 | 接触伤害 | 击杀分 | 半径 | 行为 |
+|---|---|---|---|---|---|---|
+| slime | 26 + 波次×4 | 48 + 波次×2 | 7 + 波次 | 80 + 波次×10 | 11 | 直线追踪 |
+| bat | 20 + 波次×3 | 72 + 波次×3 | 6 + 波次 | 100 + 波次×12 | 9 | 高速追踪 |
+| brute | 52 + 波次×6 | 36 + 波次×1.5 | 12 + 波次 | 160 + 波次×18 | 15 | 蓄力冲锋 |
+| boss | 460 | 42 | 18 | 1800 | 25 | 追踪 + 冲锋 + 狂暴召唤 |
 
-### 5.4 方向到动画的映射
+- 第 2 波起有 42% 概率出 bat；第 3 波起有 22% 概率出 brute；其余为 slime。
+- brute 冲锋：触发距离 145，蓄力 0.65 秒，冲锋 0.40 秒 / 速度 245，冷却 2.4 秒。蓄力时有红圈预警。
+- Boss 半血（≤230）狂暴：伤害 +3、速度 ×1.12、冲锋更快，并召唤 2 只 bat。致死伤害不会同时触发狂暴。
+- 敌人出生有 0.35 秒缩放保护，期间不可被攻击；接触伤害冷却 0.85 秒。
+- 同屏活跃敌人上限 **16**。
 
-走路：
+### 4.3 波次
 
-| 移动方向 | 播放动画 | `flip_h` | 记录的 `last_direction` |
-|---|---|---|---|
-| 右 | `walk_left` | `true` | `right` |
-| 左 | `walk_left` | `false` | `left` |
-| 下 | `walk_down` | `false` | `down` |
-| 上 | `walk_up` | `false` | `up` |
-
-待机：
-
-| 朝向 | 播放动画 | `flip_h` |
+| 波次 | 数量 | 名称 |
 |---|---|---|
-| 左 | `idle_left` | `false` |
-| 右 | `idle_left` | `true` |
-| 下 | `idle_down` | `false` |
-| 上 | `idle_up` | `false` |
+| 1 | 5 | SLIMES IN THE GRASS |
+| 2 | 8 | QUICK WINGS |
+| 3 | 11 | HEAVY FOOTSTEPS |
+| 4 | 14 | THE LAST DEFENSE |
+| 5 | 5（含 Boss） | MOSS KING |
 
-要点：
+生成间隔：前 4 波 0.62 秒，第 5 波 0.85 秒。清完一波后等 0.75 秒进入升级 / 胜利。敌人从场地边缘生成，尽量离玩家 >135 像素。
 
-- **没有单独的"向右"动画资源**。向右走/站都用 `walk_left` / `idle_left` 水平翻转，`last_direction = "right"` 只是记录状态，动画名里没有 `right`。
-- 当 `|x| == |y|`（正好斜向）时，`abs(dir.x) > abs(dir.y)` 为假，会走**垂直方向**分支，即上下优先。
-- 键盘的"按下/松开"直接切换动画，没有过渡帧、没有加速度。
+### 4.4 升级（8 选 3）
 
-### 5.5 容易误解的地方
+| id | 名称 | 效果 |
+|---|---|---|
+| damage | KEEN EDGE | 剑击伤害 +7 |
+| attack_speed | QUICK HANDS | 攻击间隔 ×0.86（最低 0.18） |
+| move_speed | LIGHT STEP | 移速 +13 |
+| max_hp | STRONG HEART | 最大生命 +22，并回复 30 |
+| dash | WIND STEP | 闪避冷却 ×0.82（最低 0.45），持续 +0.015 |
+| special | SPRING POWER | 技能冷却 ×0.80（最低 2.4），伤害 +10 |
+| armor | BARK ARMOR | 每次受击减 2 |
+| leech | LIFE DEW | 每次击杀回复 1.5 |
 
-- **速度有两个值**：脚本默认 `_move_speed := 48.0`，但场景里把 `Player` 节点覆盖成了 **40.0**。实际运行时是 40。
-- `_move_speed` 前面的下划线只是命名习惯，加了 `export` 后依然会在检查器里显示、可调。
-- 在掌机上，`demo.gptk` 把十字键和左摇杆都映射成 W/A/S/D 键盘事件，所以两种掌机方向输入都能控制角色。
-- 没有用到鼠标输入；A/B/X/Y 仍映射成鼠标左键，因此这些按钮在游戏里没有效果。
-- `Start` 被映射成 Esc，启动器同时设置了 `FRT_EXIT_SHORTCUT=esc`，因此掌机上按 Start 可退出游戏；画面与移动已在真机确认，退出链路按 FRT 2.1.0 规则配置。
+每波结束固定回复 10 点生命。升级可叠加，次数记录在 `player.upgrades`。
+
+### 4.5 连击、掉落与计分
+
+- 连击窗口 **3.2 秒**，窗口内连续击杀倍率 +1，最高 **x5**；超时归零。
+- 击杀掉落宝石：加 `12 × 当前连击` 分；拾取宝石会刷新连击窗口。
+- 18% 概率或 brute 必掉心：回复 18。
+- Boss 死亡额外 +500 分，掉 2 个心各回复 30。
+- 胜利额外 +1000 分。
+- 最高分存 `user://spring_guard.cfg` 的 `records/best_score`。
 
 ---
 
-## 6. 动画资源
+## 5. 场景、素材与音效
 
-### 6.1 已接入的动画
+### 5.1 竞技场
 
-场景只引用了两张图集：
+- 草地 30×22 格（`x = -15..14`，`y = -11..10`），16px 瓦片，随机草花装饰。
+- 外圈水带碰撞，两个 3×3 小水池。
+- 相机挂在玩家下，`zoom = 0.5`（Godot 3 语义 = 放大 2 倍），平滑跟随，限制 `±256 / ±192`。
+- 场地边界 `Rect2(-232, -168, 464, 336)`；敌人生成边缘 `±218 / ±154`。
+- 受击 / 技能 / Boss 死亡触发屏幕震动，强度随时间衰减。
 
-| 文件 | 尺寸 | 网格 | 单帧 | 说明 |
-|---|---|---|---|---|
-| `Character0_Idle.png` | 3680×2300 | 8 列 × 5 行 | 460×460 | 只用了第 1、3、5 行（下/左/上），第 2、4 行未使用 |
-| `Character0_Walk.png` | 2760×2300 | 6 列 × 5 行 | 460×460 | 只用了第 1、3、5 行（下/左/上），第 2、4 行未使用 |
+### 5.2 玩家图集
 
-`SpriteFrames` 里的 6 个动画（全部 `loop = true`，速度 10 fps）：
+原始 460×460 角色帧由 `tools/build_game_assets.py` 裁缩为 **48×48**，每方向 3 行拼成横向图集：
 
-| 动画 | 帧数 | 来源 | 用途 |
-|---|---|---|---|
-| `idle_down` | 8 | Idle 第 1 行 | 朝下待机 |
-| `idle_left` | 8 | Idle 第 3 行 | 朝左/朝右待机（右靠翻转） |
-| `idle_up` | 8 | Idle 第 5 行 | 朝上待机 |
-| `walk_down` | 6 | Walk 第 1 行 | 向下走 |
-| `walk_left` | 6 | Walk 第 3 行 | 向左/向右走（右靠翻转） |
-| `walk_up` | 6 | Walk 第 5 行 | 向上走 |
-
-合计引用 42 帧。每帧 460×460，精灵缩放 0.07 后约 32×32 世界像素，正好等于一格世界瓦片。
-
-### 6.2 已经准备好但没接进游戏的动作
-
-`character/sprites/` 共有 78 张图，除了上面两张，其余 **76 张都没有被场景引用**。素材覆盖了完整的一套农场角色状态：
-
-| 动作 | 素材情况 | 是否已接入 |
+| 文件 | 帧数/方向 | 用途 |
 |---|---|---|
-| 待机 / 走路（空手） | 有 | **已接入** |
-| 待机 / 走路 + 8 种工具 | 有 | 未接入 |
-| 奔跑 `Run`（空手 + 7 种工具） | 有 | 未接入 |
-| 挖掘 `Dig`（含铲子版） | 有 | 未接入 |
-| 钓鱼 `Fish`（含钓竿版） | 有 | 未接入 |
-| 挥砍 `Swing`（斧 / 锤 / 镐） | 有 | 未接入 |
-| 剑击 `SwordAttack` | 有 | 未接入 |
-| 交互 `Interact`、坐下 `Sit`、起身 `GetUp`、受伤 `Damage` | 有，含工具变体 | 未接入 |
-| 死亡 `Die` | 有 | 未接入 |
+| `player_idle.png` | 8 | 待机 |
+| `player_run.png` | 4 | 跑动 |
+| `player_attack.png` | 6 | 剑击 / 技能 |
+| `player_hurt.png` | 2 | 受伤 |
+| `player_die.png` | 6 | 死亡 |
 
-可用工具共 8 种：斧头（Axe）、钓竿（FishingPole/Fishingpole）、锤子（Hammer）、镐（PickAxe/Pickaxe）、盾（Shield）、铲子（Showel）、剑（Sword）、水壶（WaterCan）。
+向右没有独立素材，靠 `flip_h` 复用左方向。敌人、掉落、特效用轻量程序化绘制，不占贴图内存。
 
-> 文件命名不统一：`FishingPole` 和 `Fishingpole`、`PickAxe` 和 `Pickaxe` 混用；铲子拼成了 `Showel`（正确拼写是 Shovel）；还额外有一张 `WalkHoldingTool_Silver.png`。写代码批量加载时要按实际文件名来，别按单词猜。
+### 5.3 音效
 
-### 6.3 新增一个动作的步骤
-
-1. 把新图集放进 `character/sprites/`，确认导入完成；
-2. 在 `Game.tscn` 里选中 `Player/AnimatedSprite`，打开 `SpriteFrames`；
-3. 新建动画（如 `run_down`），按 460×460 网格切 `AtlasTexture` 加帧，设置 fps 和 loop；
-4. 在 `Player.gd` 里增加状态判断，`anim_sprite.play("run_" + 方向)`。
-
-如果要做工具切换，最简单的做法是每个工具一套 `SpriteFrames`，切工具时整体替换 `anim_sprite.frames`；所有工具图集的帧网格必须保持一致，否则动画会错位。
+9 个本地合成 WAV（22050Hz 单声道）：swing、hit、hurt、dash、pickup、special、wave、win、lose。游戏用 8 个 `AudioStreamPlayer` 轮询播放，避免同帧音效互相打断。没有背景音乐。
 
 ---
 
-## 7. 地图与瓦片
+## 6. 输入映射
 
-### 7.1 图集清单
+### 6.1 Godot InputMap
 
-| 文件 | 尺寸 | 16 px 网格 | 是否使用 |
-|---|---|---|---|
-| `Grass.png` | 176×112 | 11×7 | 使用（TileSet 里定义了 16 个草地 tile） |
-| `Water.png` | 64×16 | 4×1 | 使用（只定义了第 1 帧） |
-| `Tileset Spring.png` | 192×320 | 12×20 | 未使用 |
-| `Tilled_Dirt.png` | 176×112 | 11×7 | 未使用 |
-| `Walls and Floors copiar.png` | 144×176 | 9×11 | 未使用 |
+| 动作 | 键盘 | 手柄 |
+|---|---|---|
+| move_left/right/up/down | A/D/W/S | 轴 0/1 + D-pad 按钮 14/15/12/13 |
+| attack | J / 空格 / 鼠标左键 | 按钮 0 |
+| dash | K | 按钮 1 |
+| special | L / E | 按钮 2 |
+| pause | P | 按钮 9 |
 
-TileSet 一共定义了 17 个 tile：
+摇杆死区 0.5。键盘和手柄统一由 `Input.get_axis()` / `Input.is_action_just_pressed()` 读取。
 
-- 草地 tile id `1`–`16`，其中 id `3` 和 id `4` 指向同一个图块（`Rect2(0, 16, 16, 16)`），id `4` 实际没用到；
-- 水 tile id `17`，只取 `Water.png` 的 `(0, 0, 16, 16)`，所以水是静态的，另外 3 帧没有接入；
-- 地图实际用到的草地 id 是 `1, 2, 3, 5, 6, 7, 8, 9, 10`，共 9 种；
-- 草地 tile `1`–`16` 没有碰撞形状；水 tile `17` 配置了覆盖整格的 16×16 矩形碰撞形状。
+### 6.2 掌机 gptokeyb（`demo.gptk`）
 
-### 7.2 地图构成
+| 掌机按键 | 映射成 | 游戏效果 |
+|---|---|---|
+| 十字键 / 左摇杆 | W/S/A/D | 移动 |
+| A / Y / R1 | J | 剑击 |
+| B / R2 / L2 | K | 闪避 |
+| X / L1 | L | 范围技能 |
+| Select / back | P / Enter | 暂停 / 确认 |
+| Start | Esc | 退出（FRT 退出快捷键） |
 
-| 层 | 范围（格） | 数量 | 可见性 |
-|---|---|---|---|
-| Grass | `x = -5..4`，`y = -5..4` | 100（10×10） | 可见 |
-| Water | `x = -10..9`，`y = -8..7` 的外框，扣除与草地重叠的 36 格 | 220 | 可见，有碰撞 |
-
-水的形状是"回"字形：上下各 4 行是整行，中间 8 行只保留左右各 5 列，中间空出完整的 10×10 区域给草地。
-
-草地在屏幕上是 640×640，宽度正好等于屏幕，因此：
-
-- 左右走到草地边缘 = 走到屏幕边缘；
-- 继续走就会离开可视区域；
-- 上下还有约 80 屏幕像素的余量（草地比屏幕高 160 像素，上下各 80）。
+启动器同时设 `FRT_NO_EXIT_SHORTCUTS=1` 和 `FRT_EXIT_SHORTCUT=esc`，兼容 FRT 2.0.x / 2.1.0+。**暂停用 Select，不用 Start**，避免和退出冲突。
 
 ---
 
-## 8. 关键配置速查
+## 7. R36S / PortMaster 部署
 
-### 8.1 `project.godot`
-
-| 配置 | 值 | 含义 |
-|---|---|---|
-| `application/config/name` | `demo` | 工程名 |
-| `application/run/main_scene` | `res://scenes/Game.tscn` | 启动场景 |
-| `display/window/size/width` | `640` | 设计宽度 |
-| `display/window/size/height` | `480` | 设计高度 |
-| `display/window/stretch/mode` | `2d` | 2D 拉伸模式 |
-| `rendering/quality/driver/driver_name` | `GLES2` | 面向低功耗掌机的渲染后端 |
-| `vram_compression/import_etc` | `true` | 启用 ETC1 |
-| `vram_compression/import_etc2` | `false` | 未启用 ETC2 |
-| `boot_splash/show_image` | `false` | 关闭启动图 |
-| `editor/version_control_plugin_name` | `GitAPI` | 编辑器加载 Git 插件 |
-| 输入动作 | 4 个 | 只有上/下/左/右 |
-
-`default_env.tres` 里配置了 ProceduralSky，但这套环境主要面向 3D，当前 2D 画面基本看不到它的效果。
-
-### 8.2 输入映射
-
-| 动作 | 键盘（物理扫描码） | 手柄 |
-|---|---|---|
-| `move_left` | A | 轴 0，负方向 |
-| `move_right` | D | 轴 0，正方向 |
-| `move_up` | W | 轴 1，负方向 |
-| `move_down` | S | 轴 1，正方向 |
-| 统一死区 | — | 0.5 |
-
-没有 `interact`、`attack`、`pause`、`ui_*` 等自定义动作。
-
-### 8.3 导出预设
-
-| 预设 | 平台 | 输出路径 | 关键选项 |
-|---|---|---|---|
-| `Linux/X11` | Linux 64 位 | `Build/demo.x86_64` | 不内嵌 PCK；S3TC 开，ETC/ETC2 关 |
-| `HTML5` | Web | `.build/demo.html` | 画布自适应；PWA 关闭 |
-
-两个预设都是：
-
-- `export_filter="all_resources"`：导出所有资源；
-- `script_export_mode=1`：脚本以二进制 token 形式导出（PCK 里是 `Player.gdc` + `.remap`）。
-
-当前仓库没有上述两个路径的完整产物，只有掌机用的 `demo.pck`。
-
----
-
-## 9. R36S / PortMaster 部署
-
-### 9.1 放文件
-
-`.build/` 里的东西对应到掌机上的位置：
+### 7.1 放文件
 
 ```text
 /roms/ports/
-├── demo.sh                 ← 来自 .build/demo.sh
+├── demo.sh                 ← .build/demo.sh
 └── demo/
-    ├── demo.pck            ← 来自 .build/demo/demo.pck
-    ├── demo.gptk           ← 来自 .build/demo/demo.gptk
+    ├── demo.pck            ← .build/demo/demo.pck
+    ├── demo.gptk           ← .build/demo/demo.gptk
     └── log.txt             ← 运行时自动生成
 ```
 
-### 9.2 `demo.sh` 做了什么
+### 7.2 启动脚本做了什么
 
-脚本是标准的 PortMaster 启动器，流程如下：
+1. 在 4 个常见位置找 PortMaster，加载 `control.txt` / `device_info.txt` / CFW mod。
+2. `get_controls` 准备 SDL 手柄配置；`GAMEDIR=/roms/ports/demo`，配置目录指到 `conf`。
+3. stdout/stderr 写入 `log.txt`。
+4. 运行时 `frt_3.5.2`；缺 squashfs 时调 `harbourmaster` 下载。
+5. 挂载 squashfs 到 `~/godot`，加入 PATH。
+6. 设 FRT 退出变量，追加 `--video-driver GLES2`。
+7. 开放 `/dev/uinput`，起 `gptokeyb -c ./demo.gptk`，执行 `frt_3.5.2 $GODOT_OPTS --main-pack demo.pck`。
+8. 退出后卸载运行时、杀 gptokeyb、重启 oga_events、清屏。
 
-1. 在 4 个常见位置里找 PortMaster 目录（`/opt/system/Tools/PortMaster`、`/opt/tools/PortMaster`、`$XDG_DATA_HOME/PortMaster`、`/roms/ports/PortMaster`）。
-2. 加载 `control.txt`、`device_info.txt`，以及当前 CFW 的 `mod_${CFW_NAME}.txt`。
-3. 调用 `get_controls` 准备 SDL 手柄配置。
-4. 设定 `GAMEDIR=/roms/ports/demo`，把 `XDG_CONFIG_HOME` / `XDG_DATA_HOME` 指到游戏目录下的 `conf`。
-5. 把 stdout/stderr 同时写入 `GAMEDIR/log.txt`。
-6. 指定运行时 `frt_3.5.2`；如果 `frt_3.5.2.squashfs` 不存在，会调用 `harbourmaster` 下载。
-7. 把运行时 squashfs 挂载到 `~/godot` 并加入 `PATH`。
-8. 开放 `/dev/uinput`，启动 `gptokeyb`（用 `demo.gptk`），然后执行：
-
-   ```bash
-   frt_3.5.2 $GODOT_OPTS --main-pack demo.pck
-   ```
-
-9. 游戏退出后卸载运行时、杀掉 `gptokeyb`、重启 `oga_events`、清屏。
-
-脚本还做了三项兼容处理：
-
-- 同时设置旧版 `FRT_NO_EXIT_SHORTCUTS=1` 和新版 `FRT_EXIT_SHORTCUT=esc`，分别适配 FRT 2.0.x / 2.1.0+；
-- 在 `$GODOT_OPTS` 后追加 `--video-driver GLES2`，明确走本工程使用的 GLES2 渲染后端；
-- 消耗 PortMaster 提供的 `$GODOT_OPTS`。
-
-### 9.3 掌机按键映射（`demo.gptk`）
-
-| 掌机按键 | gptokeyb 映射成 | 游戏内实际效果 |
-|---|---|---|
-| 十字键 上/下/左/右 | W / S / A / D | **移动** |
-| 左摇杆 上/下/左/右 | W / S / A / D | **移动** |
-| A / B / X / Y | 鼠标左键 | 无（没有绑定动作） |
-| R1 / R2 | 鼠标左键 | 无 |
-| L1 / L2 | 鼠标减速 | 无 |
-| Select / back | Enter | 无 |
-| Start | Esc | **退出游戏**（FRT 2.1.0+，由 `FRT_EXIT_SHORTCUT=esc` 处理） |
-
-掌机上现在十字键和左摇杆都能移动角色。A/B/X/Y、R1/R2、L1/L2、Select 仍然没有游戏内动作，属于预留按键。
-
-### 9.4 构建产物里有什么
-
-`demo.pck` 的关键信息：
+### 7.3 PCK 信息
 
 | 项目 | 值 |
 |---|---|
-| 文件数 | 175 |
-| 总大小 | 26,913,696 字节（25.67 MiB） |
-| 贴图导入产物 | 26,425,118 字节，约占 98.2% |
-| 引擎版本 | 3.5.3 |
-| 脚本 | `res://character/scripts/Player.gdc`（编译后的脚本） |
-| 插件 | 只带了 Git 插件的 `gdnlib`/`gdns` 描述（596 字节），没有原生库 |
+| 大小 | 745,856 字节（约 728 KiB） |
+| SHA-256 | `5f60d4bbbc54abcabaf1683f4b4c7c6b066d6f849765e5cc5aa06673ad99db3a` |
+| 引擎 | 3.5.3 导出 / frt_3.5.2 运行 |
+| 主场景 | `res://scenes/Game.tscn` |
+| 脚本 | 编译为 `.gdc` + `.remap` |
 
-因为导出过滤是 `all_resources`，**76 张没用到的动作图也全部打进了 PCK**，这是包体达到 25 MB 的主要原因。
+旧移动演示 PCK 约 25.67 MiB，因为 `all_resources` 把 76 张未用大图集也打进去了。现在导出预设排除了 `character/sprites/Character0_*`、`addons/*`、`tools/*`、`docs/*`、`.agent/*`、`.build/*`，只带实际用到的 48px 图集、瓦片、字体、音效和脚本，包体降到约 728 KiB。
 
-### 9.5 更新游戏
+### 7.4 更新游戏
 
-1. 在 Godot 3.5 里重新导出 PCK（Export PCK/Zip），或重新导出 Linux 版本后取其中的 PCK；
-2. 替换 `/roms/ports/demo/demo.pck`；
-3. 重启 EmulationStation / 重新启动端口；
-4. 出问题先看 `/roms/ports/demo/log.txt`。
+1. 电脑端改代码 / 素材，跑回归和启动检查；
+2. 重新 `--export-pack "Linux/X11" .build/demo/demo.pck`；
+3. 替换掌机 `/roms/ports/demo/demo.pck`（映射或启动器改了也要一起替换）；
+4. 重启端口；出问题先看 `/roms/ports/demo/log.txt`。
 
-PCK 是 3.5.3 导出的，掌机运行时是 3.5.2，同属 3.5.x，正常情况下兼容；如果换运行时，建议两边版本对齐。
+### 7.5 上机验收清单
 
----
-
-## 10. 已知限制
-
-1. **只有移动和动画**：没有游戏循环、交互、战斗、采集、物品、NPC、敌人、任务。
-2. **水是静态的**：`Water.png` 有 4 帧，但 TileSet 只用了第 1 帧。
-3. **76 张动作素材未接入**：奔跑、挖掘、钓鱼、挥砍、剑击、交互、坐下、受伤、死亡等都只有图，没有逻辑。
-4. **没有向左/向右的独立动画**：右方向靠 `flip_h` 复用左方向动画。
-5. **没有声音**：工程里没有任何音频文件。
-6. **没有 UI / 存档 / 设置**：左上角 `Welcome!` 是占位文字，不是菜单。
-7. **生成物已忽略**：项目已接入 Git，`import/`、`.import/`、API 冒烟任务和临时日志不会推送；源码、Skill、文档与掌机 PCK 会保留。
-8. **字体重复**：`fonts/` 和 `scenes/` 各有一份相同的字体文件，场景只引用 `fonts/` 那份。
-9. **两个导出预设都没有完整产物**：仓库里只有掌机 PCK。
-10. **PCK 偏大**：绝大部分是导入贴图，其中多数贴图当前场景用不到。
-11. **速度配置容易看错**：脚本默认 48，场景覆盖成 40，实际以场景为准。
+- 标题界面、操作说明、最高分正常显示；
+- 十字键和左摇杆都能移动，A 剑击、B 闪避、X 技能、Select 暂停、Start 退出；
+- 五波推进、升级三选一、Boss 狂暴、胜负结算正常；
+- 血条 / 分数 / 连击 / 冷却 / Boss 条刷新正确；
+- 帧率流畅、无明显卡顿，日志无 SCRIPT ERROR / 资源缺失。
 
 ---
 
-## 11. 二次开发指南
+## 8. 已知限制
 
-### 11.1 建议的推进顺序
-
-相机跟随、地形碰撞、地图显示、掌机方向输入已经完成，并已在真实 R36S 上确认可玩。下一步按功能推进：
-
-1. **增加输入动作**：在 Project Settings → Input Map 里加 `run`、`interact`、`attack`，再在 `Player.gd` 里做状态切换。
-2. **接入现成动作**：优先接 `Run`、`Interact`、`Dig`、`Fish`、`Swing`，这些图都齐了，只缺动画状态和逻辑。
-3. **工具系统**：用 8 套 `HoldingTool` 图集，切换工具时替换 `SpriteFrames`；注意帧网格保持一致。
-4. **地图扩展**：`Tileset Spring.png`、`Tilled_Dirt.png`、`Walls and Floors copiar.png` 已经在 `map/tileset/`，可以直接扩 TileSet 做季节、耕地、房屋。
-5. **补外围系统**：音频、背包/UI、存档、NPC、敌人、任务。当前工程没有任何相关基础，需要从零搭。
-6. **减小包体**：把导出过滤从 `all_resources` 改成"只导出选中场景及其依赖"，或把 76 张未使用图集移出工程；也可以先把 460 帧的 PNG 预缩到实际使用尺寸。
-
-### 11.2 改代码前先确认
-
-- **不要升级到 Godot 4**：节点名、API、相机 zoom 语义都变了，这个工程是按 3.5 写的。
-- **注意相机 zoom**：Godot 3 里 `0.5` 是放大 2 倍；改成 `2` 反而是缩小 2 倍。
-- **注意帧网格**：新增动画必须按 460×460 切帧，否则会串图。
-- **注意左右共用动画**：向右没有独立素材，别去找 `walk_right` / `idle_right`。
-- **注意掌机输入层**：加手柄按钮动作时，除了 Godot 的 InputMap，还要改 `demo.gptk`，否则掌机上收不到事件。
-- **保持 GLES2 + ETC1**：这两个设置是给低功耗掌机做的兼容选择，改渲染后端前先在真机验证。
-- **注意分辨率**：所有 UI 和相机参数都按 640×480 设计；改窗口尺寸要重新算可视范围。
+1. **游戏内 UI 是英文**：当前 JetBrains Mono 字体不含中文字形；README 和文档仍中文。要中文 UI 需换含 CJK 的字体。
+2. **没有背景音乐**：只有 9 个合成音效。
+3. **敌人 / 掉落 / 特效是程序化绘制**：风格统一但不是手绘素材；要更精细可接 asset-gen 生成贴图。
+4. **单屏竞技场**：没有关卡切换、剧情、NPC、商店。
+5. **向右动画复用左方向**：靠 `flip_h`，没有独立右向素材。
+6. **水是静态的**：`Water.png` 有多帧但只用第 1 帧。
+7. **HTML5 预设没有产物**：仓库只导出掌机 PCK；网页版需自行用 Godot 3.5 Web 模板导出。
+8. **字体有重复副本**：`fonts/` 和 `scenes/` 各一份相同字体，场景只引用 `fonts/`。
+9. **真机验收待完成**：桌面回归与 PCK 加载已验证；R36S 实机按键 / 帧率 / 内存需按第 7.5 节逐项确认。
 
 ---
 
-## 12. 常见问题
+## 9. Skill 与素材生成
 
-**Q：打开工程提示版本不支持 / 场景报错？**
-A：必须用 Godot **3.5.x**。4.x 不兼容 Godot 3 的场景和 API。
-
-**Q：资源变成粉色、或者提示找不到 `.stex`？**
-A：让编辑器重新导入。`import/` 是当前缓存，`.import/` 是旧版残留；两者都是生成物，删掉后重启编辑器会重建（重建需要一点时间）。
-
-**Q：掌机上黑屏 / 闪退 / 没反应？**
-A：先看 `/roms/ports/demo/log.txt`；再确认 PortMaster 的 `frt_3.5.2.squashfs` 是否可用、`gptokeyb` 是否正常启动。缺运行时时 `demo.sh` 会尝试用 `harbourmaster` 下载。
-
-**Q：为什么掌机左摇杆不能走路？**
-A：旧版 `demo.gptk` 把左摇杆映射成了鼠标；现在已经改成 W/A/S/D，和十字键一样能控制角色。如果更新后仍不能走，检查掌机上的 `demo.gptk` 是否还是旧文件。
-
-**Q：为什么 A/B/X/Y 按了没反应？**
-A：它们被映射成鼠标左键，而且游戏没有绑定任何鼠标/按钮动作。
-
-**Q：为什么看不到水？**
-A：旧版把 `Water` TileMap 的 `visible` 关掉了；现在已经打开，水环会显示在草地外侧，并带有碰撞。
-
-**Q：为什么角色会走出画面？**
-A：旧版相机固定在原点；现在 `Camera2D` 已挂在 `Player` 下面，会平滑跟随角色，并限制在水域范围内。
-
-**Q：为什么 PCK 有 25 MB？**
-A：导出设置为 `all_resources`，78 张角色图集（其中 76 张未使用）全部打进了包。改导出过滤或移除未使用素材可以显著减小。
-
-**Q：HTML5 怎么没有产物？**
-A：`export_presets.cfg` 里只是配置了 HTML5 预设，仓库里没有导出过网页版；需要自己用 Godot 3.5 的 Web 导出模板导一次。
-
-**Q：怎么改移动速度？**
-A：选中 `Player` 节点，改检查器里的 `_move_speed`（当前 40）。脚本默认值是 48。
-
-**Q：怎么让角色有碰撞？**
-A：当前水 tile 已经配置了碰撞形状，玩家会被水挡住。要给其他地形加碰撞，按同样方式在 TileSet 对应 tile 上添加形状；节点缩放必须同时作用于绘制和碰撞，不能只用 `cell_custom_transform` 放大绘制。
-
----
-
-## 13. Skill 与开发自动化
-
-本仓库把 `.agent/skills/` 一并开源。它们不是游戏运行依赖，而是后续继续开发时给 AI 助手使用的操作手册和工具。
+本仓库把 `.agent/skills/` 一并开源。它们不是游戏运行依赖，而是后续开发时给 AI 助手用的操作手册和工具。
 
 | Skill | 负责什么 | 什么时候用 |
 |---|---|---|
-| `engine-guide` | 识别 Godot 版本，维护 Godot 3.5/GDScript/R36S/FRT 规则，给出构建、截图、PCK 导出和 PortMaster 部署步骤 | 改场景、脚本、输入、渲染或部署时 |
-| `asset-gen` | 通过本机 apiz CLI 生成图像、视频、语音、音乐和声音设计；同时保留本地 Blender、Tripo、godogen_assets 路线 | 补角色、地图、动画、音效或音乐时 |
+| `engine-guide` | Godot 3.5 / GDScript / R36S / FRT 规则，构建、截图、PCK 导出、PortMaster 部署 | 改场景、脚本、输入、渲染或部署时 |
+| `asset-gen` | 本机 apiz CLI 生成图像 / 视频 / 语音 / 音乐 / 声音设计；保留本地 Blender、Tripo、godogen_assets | 补角色、地图、动画、音效或音乐时 |
 
-### 13.1 当前素材默认路线
+### 9.1 当前素材默认路线
 
-- 图像：`apiz/gpt-image-2.6-flare`。普通图像优先用 Flare，不主动推荐 Sunburst。
-- 视频：`minimax/h3`（MiniMax-H3）为默认；`st-ai/super-seed2` 仍可显式选择，二者按各自 schema 工作。
+- 图像：`apiz/gpt-image-2.6-flare`。普通图像优先 Flare，不主动推荐 Sunburst。透明 GIF 按 Flare 真实 schema：透明 PNG 关键帧本地组装，不发不支持的 transparent-GIF 参数。
+- 视频：`minimax/h3`（MiniMax-H3）默认；`st-ai/super-seed2`（Seedance）仍可显式选择。H3 支持文生视频、首尾帧、图片/视频/音频混合参考。
 - 语音：`speech-2.8-hd`；声音设计：`minimax/voice-design`；音乐：`minimax/music-gen`。
-- 免费/本地路线：`godogen_assets`、Blender、Tripo 和自定义动画工具仍保留，按项目需要选择。
+- 免费/本地路线：`godogen_assets`、Blender、Tripo、自定义动画工具仍保留。
 
-### 13.2 使用 asset-gen
+### 9.2 使用 asset-gen
 
 ```bash
 ASSET_SKILL=".agent/skills/asset-gen"
@@ -585,112 +390,88 @@ python "$APIZ" models --category video --search h3
 python "$APIZ" docs minimax/h3
 ```
 
-API Key 只保存在本机 apiz profile 或环境变量中，不提交到 Git。每次付费生成都会写 `<输出文件>.apiz.json`，记录任务号、参数和真实费用；相同命令会续查原任务，`--force` 才会重新付费提交。
+API Key 只在本机 apiz profile 或环境变量，不提交 Git。每次付费生成写 `<输出文件>.apiz.json` 记录任务号、参数、真实费用；相同命令续查原任务，`--force` 才重新付费提交。
 
 H3 文生视频示例：
 
 ```bash
 python "$APIZ" video \
-  --prompt "A tiny farm robot waves hello, fixed camera, clean game-cinematic style" \
+  --prompt "A tiny guardian defends a spring, fixed camera, clean game-cinematic style" \
   --duration 4 --resolution 480p --aspect-ratio 16:9 \
-  -o .build/robot_wave.mp4
+  -o .build/guardian.mp4
 ```
 
-H3 首尾帧示例：
+需要 Seedance 时显式指定 `--model st-ai/super-seed2`，并按 Seedance schema 传参；不要把 H3 的 `content` 和 Seedance 的 `functionMode` / `filePaths` 混用。
 
-```bash
-python "$APIZ" video \
-  --prompt "The character completes a steady wave, consistent colors and lighting" \
-  --first-frame assets/img/first.png --last-frame assets/img/last.png \
-  --duration 5 --resolution 768P --aspect-ratio 16:9 \
-  -o assets/video/wave.mp4
-```
-
-需要 Seedance 时显式指定：
-
-```bash
-python "$APIZ" video --model st-ai/super-seed2 \
-  --prompt "A slow cinematic push-in" \
-  --image assets/img/first.png --image assets/img/last.png \
-  --duration 5 --aspect-ratio 16:9 --variant fast \
-  -o assets/video/intro_seedance.mp4
-```
-
-运行包装器回归测试：
+包装器回归：
 
 ```bash
 python .build/test_apiz_wrapper.py
 ```
 
-当前测试覆盖 H3 默认值、原生 `content` 数组、首尾帧与混合参考上传、参数边界、Seedance 兼容、续跑请求哈希、媒体下载和批次失败退出码。
+覆盖 H3 默认值、原生 content 数组、首尾帧与混合参考上传、参数边界、Seedance 兼容、续跑请求哈希、媒体下载和批次失败退出码。
 
-## 14. 从开发到上机的完整流程
+---
 
-### 14.1 电脑端开发与验证
+## 10. 从开发到上机的完整流程
 
-1. 用 **Godot 3.5.3** 打开 `project.godot`，不要用 Godot 4。
-2. 修改 `scenes/Game.tscn` 或 `character/scripts/Player.gd`。
-3. 先让编辑器完成资源导入，再运行主场景。
-4. 命令行验证时，在 Git Bash 中可指定本机 Godot 3.5.3：
+### 10.1 电脑端开发与验证
+
+1. Godot 3.5.3 打开 `project.godot`，不要用 Godot 4。
+2. 改 `game/*.gd`、`character/scripts/Player.gd`、`scenes/Game.tscn` 或素材。
+3. 素材改了先跑 `python tools/build_game_assets.py`，再让 Godot 重新导入。
+4. 启动检查 + 玩法回归：
 
 ```bash
-GODOT="/path/to/Godot_v3.5.3-stable_win64.exe"
-
-"$GODOT" --version
-"$GODOT" --headless --path . --editor --quit
-"$GODOT" --headless --path . \
-  --script res://character/scripts/Player.gd --check-only
+GODOT="/c/Users/49707/AppData/Local/Temp/godot-3.5.3/Godot_v3.5.3-stable_win64.exe"
 "$GODOT" --headless --path . --no-window --quit
+"$GODOT" --headless --path . --script res://.build/test_game.gd
 ```
 
-Godot 3 的某些脚本错误只写日志、不返回非零退出码，所以不能只看退出码；日志里出现 `SCRIPT ERROR`、`ERROR:`、解析失败或资源缺失都必须处理。
+回归覆盖：标题、开始、第一波生成、正面剑击、玩家受伤、闪避冷却、技能冷却、清波升级、三选一、升级生效、暂停/恢复、推进到第五波、Boss 生成、半血狂暴、击败 Boss 胜利、分数/击杀/最高分。
 
-### 14.2 导出掌机 PCK
-
-Godot 3.5 的 `--export-pack` 不需要二进制导出模板：
+5. 需要看画面时跑截图脚本，检查 `docs/images/game_*.png`：
 
 ```bash
-mkdir -p .build/demo
-"$GODOT" --headless --path . \
-  --export-pack "Linux/X11" ".build/demo/demo.pck"
+"$GODOT" --path . --script res://.build/capture_game.gd
+```
 
+### 10.2 导出掌机 PCK
+
+```bash
+"$GODOT" --headless --path . --export-pack "Linux/X11" .build/demo/demo.pck
 sha256sum .build/demo/demo.pck
 ```
 
-导出预设保留在 `export_presets.cfg`。当前使用 `all_resources`，所以未接入的角色动作图也会进包，PCK 约 25.67 MiB。
+`--export-pack` 不需要二进制导出模板。导出后建议再用 `--main-pack .build/demo/demo.pck --quit` 验证包能独立加载。
 
-### 14.3 推送到 R36S
+### 10.3 推送到 R36S
 
-先查询掌机当前 IP，并通过 SSH 正常核对主机密钥。密码不写进命令或仓库：
+先查掌机当前 IP，SSH 用已记录主机密钥核对，**不要**盲目 `StrictHostKeyChecking=no`。密码不写进命令、仓库或日志：
 
 ```bash
 export R36S_HOST="ark@<R36S_IP>"
 
 scp .build/demo.sh "$R36S_HOST:/roms/ports/demo.sh"
 scp .build/demo/demo.pck .build/demo/demo.gptk "$R36S_HOST:/roms/ports/demo/"
-
 ssh "$R36S_HOST" 'chmod +x /roms/ports/demo.sh && ls -lh /roms/ports/demo/demo.pck'
 ```
 
-如果没有 `scp`，可用 PuTTY 的 `pscp` 执行同样复制操作。设备路径、SSH 注意事项和验收清单见 [r36s.md](r36s.md)。
+没有 `scp` 可用 PuTTY `pscp`。设备路径、SSH 注意事项见 [r36s.md](r36s.md)。
 
-### 14.4 上机验收
+### 10.4 上机验收
 
-从 EmulationStation 启动 `demo`，逐项确认：
-
-- 草地、水环、角色和 `Welcome!` 正常显示；
-- 十字键与左摇杆都能四方向移动；
-- 角色被水挡住，相机跟随；
-- 按 Start 走 Esc 退出链路；
-- 日志没有脚本、资源或运行时错误。
+从 EmulationStation 启动 `demo`，按第 7.5 节清单逐项确认，并看日志：
 
 ```bash
 ssh "$R36S_HOST" 'tail -n 80 /roms/ports/demo/log.txt'
 ```
 
-更完整的版本对应关系、输入链路和排障说明见 [docs/FRT整合说明.md](docs/FRT整合说明.md)。
+更完整的版本对应、输入链路和排障见 [docs/FRT整合说明.md](docs/FRT整合说明.md)。
 
-### 14.5 发布到 GitHub
+---
+
+## 11. 发布到 GitHub
 
 仓库地址：
 
@@ -706,7 +487,9 @@ git branch -M main
 git push -u origin main
 ```
 
-提交前确认没有密码、API Key、私钥或本机路径；`import/`、`.import/`、`.build/apiz-smoke/` 和临时日志已被 `.gitignore` 排除。
+提交前确认没有密码、API Key、私钥或本机敏感路径；`import/`、`.import/`、Python 字节码、API 冒烟任务和临时日志已被 `.gitignore` 排除。`.agent/`、README、FRT/R36S 文档、验证脚本和掌机 PCK 会保留在仓库中。
+
+---
 
 ## 附录 A：数值速查
 
@@ -714,38 +497,40 @@ git push -u origin main
 |---|---|
 | 设计分辨率 | 640×480 |
 | 拉伸模式 | 2d |
-| 相机 zoom | 0.5（Godot 3 语义 = 放大 2 倍） |
-| 可视世界范围 | 320×240 |
-| 源瓦片 | 16×16 |
-| 世界瓦片 | 32×32（`Water` 节点 `scale = 2`，`Grass` 继承） |
-| 屏幕瓦片 | 64×64 |
-| 草地 | 10×10 格，100 格，全部可走 |
-| 水外框 | 220 格，中间 10×10 空洞，带碰撞 |
-| 玩家速度 | 40 世界像素/秒（屏幕 80 像素/秒） |
-| 玩家碰撞盒 | 13×23 世界像素 |
-| 角色帧 | 460×460，缩放 0.07 |
-| 已接入动画 | 6 个，42 帧，10 fps |
-| 角色素材 | 78 张 PNG，2 张已用，76 张未用 |
-| 字体 | JetBrains Mono，64 px × 0.15885 |
-| PCK | 175 个文件，25.67 MiB |
-| PCK SHA-256 | `f71356b0e021b76717683bc04e5921c041e3971eb7a2fe71f02c1461a5f261e9` |
-| 引擎版本 | PCK 3.5.3 / 运行时 frt_3.5.2 |
+| 相机 zoom | 0.5（Godot 3 = 放大 2 倍） |
+| 相机限制 | ±256 / ±192 |
+| 草地 | 30×22 格，16px 瓦片 |
+| 场地边界 | Rect2(-232, -168, 464, 336) |
+| 玩家速度 / 生命 / 伤害 | 108 / 100 / 24 |
+| 攻击间隔 / 范围 | 0.38 秒 / 50 |
+| 闪避冷却 / 速度 / 持续 | 1.15 秒 / 340 / 0.16 秒 |
+| 技能冷却 / 伤害 / 半径 | 6 秒 / 46 / 112 |
+| 波次数量 | 5 / 8 / 11 / 14 / 5 |
+| 同屏敌人上限 | 16 |
+| 连击窗口 / 上限 | 3.2 秒 / x5 |
+| Boss 生命 / 狂暴阈值 | 460 / ≤50% |
+| 玩家图集帧 | 48×48 |
+| 音效 | 9 个 WAV，22050Hz 单声道 |
+| PCK 大小 | 745,856 字节（约 728 KiB） |
+| PCK SHA-256 | `5f60d4bbbc54abcabaf1683f4b4c7c6b066d6f849765e5cc5aa06673ad99db3a` |
+| 引擎 | 3.5.3 导出 / frt_3.5.2 运行 |
 
 ## 附录 B：术语
 
 | 术语 | 在这里指什么 |
 |---|---|
-| Godot 3.5 | 本工程使用的引擎大版本；场景格式、GDScript 语法、相机 zoom 语义都按 3.x |
+| Godot 3.5 | 本工程引擎大版本；场景格式、GDScript、相机 zoom 语义都按 3.x |
 | GLES2 | 兼容性更好的渲染后端，适合低功耗掌机 |
-| ETC1 / ETC2 | 两种移动端纹理压缩格式；本工程只开 ETC1 |
+| ETC1 / ETC2 | 移动端纹理压缩格式；本工程只开 ETC1 |
 | TileMap / TileSet | 瓦片地图节点 / 瓦片图集资源 |
-| KinematicBody2D | Godot 3 的 2D 运动体节点，用 `move_and_slide` 移动 |
-| AnimatedSprite | 逐帧动画节点，本工程用 `SpriteFrames` 管理 6 个动画 |
-| PCK | Godot 的资源包，运行时通过 `--main-pack` 加载 |
-| FRT | 掌机上用的 Godot 运行时（这里是 `frt_3.5.2`） |
-| PortMaster | 掌机上的端口管理工具，负责运行时、手柄映射和启动脚本 |
-| gptokeyb | 把掌机手柄事件转换成键盘/鼠标事件的工具 |
+| KinematicBody2D | Godot 3 的 2D 运动体，用 `move_and_slide(velocity)` 移动 |
+| AnimatedSprite | 逐帧动画节点，用 `SpriteFrames` 管理 |
+| PCK | Godot 资源包，运行时 `--main-pack` 加载 |
+| FRT | 掌机 Godot 运行时（`frt_3.5.2`） |
+| PortMaster | 掌机端口管理工具，负责运行时、手柄映射、启动脚本 |
+| gptokeyb | 把掌机手柄事件转成键盘/鼠标事件的工具 |
 
+---
 
 ## 特别致谢
 

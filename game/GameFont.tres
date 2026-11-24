@@ -1,0 +1,6 @@
+[gd_resource type="DynamicFont" format=2 load_steps=2]
+
+[ext_resource path="res://fonts/JetBrainsMono-VariableFont_wght.ttf" type="DynamicFontData" id=1]
+
+[resource]
+font_data = ExtResource( 1 )

@@ -37,7 +37,7 @@
 
 | 问题 | 结论 | 依据 |
 |---|---|---|
-| 本工程的 PCK 是什么版本 | Godot **3.5.3** 导出，175 个文件，26,913,696 字节（25.67 MiB） | 【已核实】PCK 表头与文件表 |
+| 本工程的 PCK 是什么版本 | Godot **3.5.3** 导出，745,856 字节（约 728 KiB） | 【已核实】`sha256sum` 与导出日志 |
 | 掌机上 `frt_3.5.2` 到底是什么 | **FRT 2.1.0（commit 400ec48）+ Godot 3.5.2**，32 位 ARM 可执行文件 | 【已核实】PortMaster 运行时二进制内字符串 |
 | 3.5.3 的 PCK 能跑在 3.5.2 的运行时上吗 | 能。Godot 3.5 的 PCK 校验**不校验补丁号** | 【已核实】Godot 3.5 `core/io/file_access_pack.cpp` |
 | 能不能用最新的 3.6.3 运行时跑这个 PCK | 版本检查**不会拦**（它只拒绝比引擎新的包），但资源/GDScript 兼容性本工程未实测；稳妥仍用 3.5.x 运行时 | 【已核实】校验是单向的；兼容性【需实测】 |
@@ -45,7 +45,7 @@
 | 运行时依赖 | 动态链接 **`libSDL2-2.0.so.0`** | 【已核实】`readelf -d` |
 | 退出快捷键怎么配 | FRT 2.0.x 用 `FRT_NO_EXIT_SHORTCUTS`；FRT 2.1.0+ 用 `FRT_EXIT_SHORTCUT`。当前脚本同时设置两者，并把新版设为 `esc`，配合 Start → Esc 退出 | 【已核实】FRT 两个版本的源码 |
 | 本工程有没有原生插件 | 没有，只有 Git 插件的描述文件，不涉及 ABI 对齐 | 【已核实】PCK 文件表 |
-| 掌机方向输入 | `demo.gptk` 把十字键和左摇杆都映射成 W/A/S/D；`Player.gd` 统一用 `Input.get_axis()`，不再切换键盘/手柄分支 | 【已核实】代码与映射文件；2026-11-24 真机已确认游戏显示并可玩 |
+| 掌机输入 | `demo.gptk` 把十字键/左摇杆映射成 W/A/S/D；A/Y/R1→J 剑击，B/R2/L2→K 闪避，X/L1→L 技能，Select→P 暂停，Start→Esc 退出 | 【已核实】`demo.gptk` 与 InputMap |
 
 一句话：**地图显示、相机跟随、水域碰撞、掌机方向输入和退出键已完成代码整合，通过电脑桌面验证，并于 2026-11-24 在真实 R36S 上确认游戏显示和可玩。**
 
@@ -549,13 +549,15 @@ FRT 的输入模型（【官方说明】+【已核实】源码）：
 
 | 操作 | gptokeyb（`demo.gptk`） | FRT 原始手柄 | 游戏实际反应 |
 |---|---|---|---|
-| 十字键 | W/A/S/D | hat 事件 | 通过虚拟键盘移动角色 |
+| 十字键 | W/A/S/D | hat 事件 | 移动角色 |
 | 左摇杆 | W/A/S/D | 轴 0/1 | 两条路径都能移动角色 |
-| A/B/X/Y | 鼠标左键 | 按键事件 | 无绑定 |
+| A / Y / R1 | J | 按键事件 | 剑击 / 确认 |
+| B / R2 / L2 | K | 按键事件 | 闪避 |
+| X / L1 | L | 按键事件 | 范围技能 |
 | Start | Esc | 按键事件 | 通过 FRT 的 Esc 退出快捷键结束游戏 |
-| Select | Enter | 按键事件 | 无绑定 |
+| Select / back | P / Enter | 按键事件 | 暂停 / 确认 |
 
-`Player.gd` 只使用 `Input.get_axis()`，四个移动动作在 InputMap 中同时绑定 A/D/W/S 和手柄轴 0/1。十字键主要走 gptokeyb 的虚拟键盘路径；左摇杆既可以走 gptokeyb 的 WASD 路径，也可以走 FRT 的轴 0/1 路径。
+`Player.gd` 用 `Input.get_axis()` 读移动，用 `Input.is_action_just_pressed()` 读 attack / dash / special。移动动作在 InputMap 中同时绑定 A/D/W/S 和手柄轴 0/1；attack/dash/special/pause 还绑定了 J/K/L/P 和手柄按钮 0/1/2/9。十字键主要走 gptokeyb 的虚拟键盘路径；左摇杆既可以走 gptokeyb 的 WASD 路径，也可以走 FRT 的轴 0/1 路径。
 
 现在没有 `using_gamepad` 分支，也不会因为收到一次手柄事件就永久切换输入模式。InputMap 的轴死区是 0.5，gptokeyb 自己也有死区配置。
 
@@ -563,8 +565,9 @@ FRT 的输入模型（【官方说明】+【已核实】源码）：
 
 1. 只按十字键，角色应四方向移动；
 2. 只推左摇杆，角色应四方向移动；
-3. 按 Start，游戏应退出并执行启动器尾部清理；
-4. 观察 `/roms/ports/demo/log.txt`，确认没有输入设备、资源或脚本错误。
+3. A 剑击、B 闪避、X 范围技能、Select 暂停 / 恢复应有对应反应；
+4. 按 Start，游戏应退出并执行启动器尾部清理；
+5. 观察 `/roms/ports/demo/log.txt`，确认没有输入设备、资源或脚本错误。
 
 如果十字键不动而摇杆能动，优先检查 gptokeyb 是否启动、`/dev/uinput` 是否可写，以及掌机上的 `demo.gptk` 是否为当前版本。当前 InputMap 没有直接绑定手柄 hat，因此十字键依赖 gptokeyb 这一层。
 
@@ -588,7 +591,7 @@ ls -l /usr/lib/libSDL2*
 
 两种选择：
 
-- **直接用现成的**：`.build/demo/demo.pck`（3.5.3，175 文件，25.67 MiB）；
+- **直接用现成的**：`.build/demo/demo.pck`（3.5.3，745,856 字节，约 728 KiB）；
 - **自己重新导出**：用 Godot 3.5.x 打开工程，导出 `Linux/X11` 预设的 PCK。
 
 如果要修改游戏内容，必须重新导出；只换启动器则不用。

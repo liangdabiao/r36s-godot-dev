@@ -1,5 +1,6 @@
 back = enter
 start = esc
+select = p
 
 up = w
 down = s
@@ -11,17 +12,17 @@ left_analog_down = s
 left_analog_left = a
 left_analog_right = d
 
-a = mouse_left
-b = mouse_left
-x = mouse_left
-y = mouse_left
+a = j
+b = k
+x = l
+y = j
+
+r1 = j
+r2 = k
+l1 = l
+l2 = k
 
 mouse_slow_scale = 50 # 50%
-
-r1 = mouse_left
-r2 = mouse_left
-l1 = mouse_slow
-l2 = mouse_slow
 
 deadzone_mode = sloped_scaled_axial
 deadzone = 1000
